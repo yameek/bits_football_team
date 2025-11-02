@@ -6,6 +6,7 @@ import { databaseConfig } from './config/database.config';
 import { MembersModule } from './members/members.module';
 import { CategoriesModule } from './categories/categories.module';
 import { FieldsModule } from './fields/fields.module';
+import { SessionsModule } from './sessions/sessions.module';
 
 @Module({
   imports: [
@@ -13,6 +14,7 @@ import { FieldsModule } from './fields/fields.module';
     MembersModule,
     CategoriesModule,
     FieldsModule,
+    SessionsModule,
   ],
   controllers: [AppController],
   providers: [AppService],
