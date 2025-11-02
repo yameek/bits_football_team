@@ -1,11 +1,11 @@
 import { Injectable, NotFoundException, BadRequestException, ConflictException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository, Between } from 'typeorm';
+import { Repository, Between, In } from 'typeorm';
 import { Session, SessionType, SessionStatus } from '../entities/session.entity';
 import { Attendance, AttendanceStatus } from '../entities/attendance.entity';
 import { Field } from '../entities/field.entity';
 import { Member } from '../entities/member.entity';
-import { Transaction, TransactionType } from '../entities/transaction.entity';
+import { Transaction, TransactionType, TransactionMethod } from '../entities/transaction.entity';
 import { CreateSessionDto } from './dto/create-session.dto';
 import { UpdateSessionDto } from './dto/update-session.dto';
 import { BulkAttendanceDto } from './dto/mark-attendance.dto';
@@ -270,5 +270,90 @@ export class SessionsService {
            Number(session.drinks_cost) + 
            Number(session.emergency_fund) + 
            Number(session.other_costs);
+  }
+
+  async finalizeSession(id: number): Promise<{
+    session: Session;
+    chargedMembers: number;
+    perHeadFee: number;
+    totalCollected: number;
+  }> {
+    const session = await this.sessionsRepository.findOne({
+      where: { id },
+      relations: ['field'],
+    });
+
+    if (!session) {
+      throw new NotFoundException(`Session with ID ${id} not found`);
+    }
+
+    if (session.status === SessionStatus.COMPLETED) {
+      throw new BadRequestException('Session is already finalized');
+    }
+
+    if (session.status === SessionStatus.CANCELED) {
+      throw new BadRequestException('Cannot finalize a canceled session');
+    }
+
+    // Get all attendees (present or late)
+    const attendees = await this.attendanceRepository.find({
+      where: {
+        session_id: id,
+        status: In([AttendanceStatus.PRESENT, AttendanceStatus.LATE]),
+      },
+      relations: ['member'],
+    });
+
+    if (attendees.length === 0) {
+      throw new BadRequestException('Cannot finalize session with no attendees');
+    }
+
+    // BR-01: Calculate per-head fee
+    const totalCost = await this.getTotalCost(id);
+    const rawPerHeadFee = totalCost / attendees.length;
+
+    // BR-02: Round to nearest 0.25
+    const perHeadFee = Math.round(rawPerHeadFee * 4) / 4;
+
+    let totalCollected = 0;
+
+    // BR-03: Charge only attendees
+    for (const attendance of attendees) {
+      const member = attendance.member;
+      
+      // Update attendance with charged amount
+      attendance.charged_amount = perHeadFee;
+      await this.attendanceRepository.save(attendance);
+
+      // Deduct from member balance
+      member.balance = Number(member.balance) - perHeadFee;
+      await this.membersRepository.save(member);
+
+      // Create deduction transaction
+      const transaction = this.transactionsRepository.create({
+        member,
+        session,
+        transaction_type: TransactionType.SESSION_FEE,
+        amount: -perHeadFee,
+        currency: 'USD',
+        method: TransactionMethod.BANK,
+        timestamp: new Date(),
+        notes: `Session fee - ${session.name || 'Unnamed session'}`,
+      });
+      await this.transactionsRepository.save(transaction);
+
+      totalCollected += perHeadFee;
+    }
+
+    // Update session status to completed
+    session.status = SessionStatus.COMPLETED;
+    await this.sessionsRepository.save(session);
+
+    return {
+      session,
+      chargedMembers: attendees.length,
+      perHeadFee,
+      totalCollected,
+    };
   }
 }

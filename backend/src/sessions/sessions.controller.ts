@@ -162,4 +162,31 @@ export class SessionsController {
     const totalCost = await this.sessionsService.getTotalCost(id);
     return { totalCost };
   }
+
+  @Post(':id/finalize')
+  @ApiOperation({ summary: 'Finalize session and charge attendees' })
+  @ApiParam({ name: 'id', description: 'Session ID' })
+  @ApiResponse({
+    status: 201,
+    description: 'Session finalized successfully',
+    schema: {
+      type: 'object',
+      properties: {
+        message: { type: 'string', example: 'Session finalized successfully' },
+        chargedMembers: { type: 'number', example: 8 },
+        perHeadFee: { type: 'number', example: 20.75 },
+        totalCollected: { type: 'number', example: 166.00 },
+        session: { type: 'object' },
+      },
+    },
+  })
+  @ApiResponse({ status: 404, description: 'Session not found' })
+  @ApiResponse({ status: 400, description: 'Session already finalized or has no attendees' })
+  async finalizeSession(@Param('id', ParseIntPipe) id: number) {
+    const result = await this.sessionsService.finalizeSession(id);
+    return {
+      message: 'Session finalized successfully',
+      ...result,
+    };
+  }
 }
