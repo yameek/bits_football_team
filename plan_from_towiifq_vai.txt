@@ -1,0 +1,640 @@
+Software Requirements Specification (SRS)
+Money Collection Tracker
+Document Version: 1.0
+
+Date: November 2, 2025
+
+Status: Final
+
+Table of Contents
+Introduction
+Scope
+Functional Requirements
+Non-Functional Requirements
+Data Requirements
+User Interface Requirements
+System Architecture
+Security & Privacy Requirements
+Compliance Requirements
+Assumptions & Constraints
+1. Introduction
+1.1 Purpose
+The Money Collection Tracker is a cross-platform application designed to help teams, groups, and organizations manage financial transactions and collect money from individuals. The system tracks payments, balances, attendance at events, and organizes sessions (practices and matches).
+
+1.2 Document Scope
+This SRS document defines all functional and non-functional requirements for the Money Collection Tracker application across web and mobile platforms.
+
+1.3 Overview
+The application provides:
+
+Individual management with contact information
+Transaction tracking (payments and charges)
+Balance calculation and monitoring
+Session scheduling (practices and matches)
+Attendance tracking
+Category management for transactions
+Field/location management
+Privacy compliance with GDPR-like principles
+2. Scope
+2.1 System Boundaries
+The Money Collection Tracker includes:
+
+Web Application - Full-featured dashboard for desktop users
+Mobile Application - Native iOS/Android app via React Native/Expo
+Backend API - RESTful API for data operations
+Database - PostgreSQL database for persistent storage
+2.2 Out of Scope
+Payment processing/payment gateway integration
+Email notifications
+SMS notifications
+User authentication (currently single-user per deployment)
+Real-time synchronization between devices
+Offline mode
+3. Functional Requirements
+3.1 Individual Management
+FR-1.1: Create Individual
+Description: Users can add a new individual to the system
+Inputs: Name (required), Email (optional), Phone (optional)
+Process: Store individual record in database with zero initial balance
+Output: Individual record created, list updated
+Platforms: Web, Mobile
+FR-1.2: View Individual List
+Description: Users can view all individuals in the system
+Display: Name, email, phone, current balance
+Sorting: By name or balance
+Filtering: By balance status (positive/negative)
+Platforms: Web, Mobile
+FR-1.3: View Individual Details
+Description: Users can see detailed information about a specific individual
+Display: Full contact info, total balance, transaction history
+Platforms: Web, Mobile
+FR-1.4: Update Individual Information
+Description: Users can modify individual's contact details
+Editable Fields: Name, Email, Phone
+Platforms: Web (via API)
+FR-1.5: Delete Individual
+Description: Users can permanently delete an individual and all associated data
+Cascade Delete: All transactions and attendance records are deleted
+Confirmation: System requires explicit confirmation with warning message
+Platforms: Web, Mobile
+Compliance: Meets App Store Guideline 5.1.1(v)
+3.2 Transaction Management
+FR-2.1: Create Transaction
+Description: Users can record a transaction for an individual
+Fields Required:
+Individual ID
+Amount (positive decimal)
+Transaction Type (Payment/Charge)
+Description (optional)
+Category ID (optional)
+Transaction Date
+
+Process:
+Validate inputs
+Create transaction record
+Automatically update individual's total_balance
+
+Platforms: Web, Mobile
+FR-2.2: View Transactions
+Description: Users can view transaction history
+Display: Individual name, amount, type, date, description, category
+Sorting: By date (newest first)
+Pagination: Show latest 10 transactions on dashboard
+Platforms: Web, Mobile
+FR-2.3: Transaction Types
+Types Supported:
+Payment: Money received from individual (increases balance)
+Charge: Money owed by individual (decreases balance)
+
+FR-2.4: Balance Calculation
+Automatic: System automatically recalculates balance when transactions change
+Formula: total_balance = SUM(payments) - SUM(charges)
+Real-time: Balance updates immediately upon transaction creation/deletion
+3.3 Category Management
+FR-3.1: Create Transaction Category
+Description: Users can create custom transaction categories
+Fields:
+Name (required)
+Description (optional)
+Color (hex code, visual identifier)
+
+Platforms: Web (Management Center)
+FR-3.2: View Categories
+Description: Users can see all transaction categories
+Display: Category name, description, color indicator
+Platforms: Web (Management Center)
+FR-3.3: Delete Category
+Description: Users can delete unused categories
+Platforms: Web (Management Center)
+3.4 Session Management
+FR-4.1: Create Session
+Description: Users can schedule a practice or match session
+Fields Required:
+Name
+Session Type (Practice/Match)
+Scheduled Date & Time
+Field ID (optional)
+Description (optional)
+
+Platforms: Web (Management Center)
+FR-4.2: View Sessions
+Description: Users can view all scheduled sessions
+Display: Name, type, date/time, location, participant count
+Platforms: Web (Management Center)
+FR-4.3: Session Types
+Types Supported:
+Practice: Regular practice session
+Match: Official match/game
+
+3.5 Field Management
+FR-5.1: Create Field
+Description: Users can add practice/match locations
+Fields:
+Name (required)
+Location/Address (optional)
+Google Maps URL (optional)
+Coordinates (optional)
+
+Platforms: Web (Management Center)
+FR-5.2: View Fields
+Description: Users can see all field/location records
+Display: Name, location, maps link
+Platforms: Web (Management Center)
+3.6 Attendance Management
+FR-6.1: Mark Attendance
+Description: Users can record attendance for individuals at sessions
+Status Options:
+Present
+Late
+Absent
+
+Process:
+Select session
+For each individual, select attendance status
+Store attendance record
+
+Platforms: Web (Management Center)
+FR-6.2: View Attendance
+Description: Users can view attendance records for a session
+Display: Individual name, attendance status
+Filter: By session
+Platforms: Web (Management Center)
+FR-6.3: Attendance History
+Description: System tracks all attendance records with timestamps
+Data Stored:
+Session ID
+Individual ID
+Status
+Marked timestamp
+Notes (optional)
+
+Platforms: Web (Management Center)
+3.7 Reporting & Analytics
+FR-7.1: Dashboard Summary
+Metrics Displayed:
+Total balance across all individuals
+Total number of individuals
+Count of positive balances
+Count of negative balances
+
+Platforms: Web, Mobile
+FR-7.2: Recent Activity
+Description: Display latest transactions
+Count: Last 5-10 transactions
+Information: Individual, amount, type, date
+Platforms: Web, Mobile
+4. Non-Functional Requirements
+4.1 Performance
+NFR-1.1: Response Time
+API Calls: < 500ms for standard queries
+List Loading: < 1 second for lists with 100+ items
+Dashboard Load: < 2 seconds on slow 3G connection
+NFR-1.2: Concurrent Users
+Capacity: Support 10+ concurrent users
+Database Connections: Maximum 20 active connections
+NFR-1.3: Data Volume
+Individuals: Support 1000+ records
+Transactions: Support 10,000+ records
+Sessions: Support 100+ records
+4.2 Scalability
+NFR-2.1: Horizontal Scaling
+Backend can be deployed on multiple instances
+Database can be replicated
+NFR-2.2: Future Growth
+Architecture supports adding authentication
+Supports adding payment integration
+Supports adding email/SMS notifications
+4.3 Availability
+NFR-3.1: Uptime
+Target: 99% uptime during business hours
+Maintenance Windows: Scheduled outside business hours
+NFR-3.2: Backup & Recovery
+Frequency: Daily database backups
+Recovery Time: < 1 hour for data restoration
+4.4 Reliability
+NFR-4.1: Error Handling
+All errors handled gracefully
+User-friendly error messages
+Console logging for debugging
+NFR-4.2: Data Integrity
+Transactional operations for related data
+Cascade deletes for maintaining referential integrity
+Unique constraints on key fields
+4.5 Usability
+NFR-5.1: Responsive Design
+Web: Works on desktop, tablet, mobile
+Mobile: Native iOS and Android experience
+Breakpoints: 320px, 768px, 1024px, 1440px
+NFR-5.2: Accessibility
+Clear typography and color contrast
+Intuitive navigation
+Form validation with helpful messages
+NFR-5.3: User Training
+Self-explanatory UI
+Inline help text where needed
+Privacy policy accessible from all platforms
+4.6 Maintainability
+NFR-6.1: Code Quality
+Consistent code style
+Comprehensive comments
+DRY (Don't Repeat Yourself) principle
+NFR-6.2: Documentation
+API endpoint documentation
+Database schema documentation
+Deployment guides
+5. Data Requirements
+5.1 Data Entities
+5.1.1 Individuals Table
+sql
+
+
+- id (Primary Key)
+- name (VARCHAR 255) - Required
+- email (VARCHAR 255) - Optional
+- phone (VARCHAR 50) - Optional
+- total_balance (DECIMAL 10,2) - Calculated
+- created_at (TIMESTAMP)
+- updated_at (TIMESTAMP)
+5.1.2 Transactions Table
+sql
+
+
+- id (Primary Key)
+- individual_id (Foreign Key to Individuals)
+- amount (DECIMAL 10,2) - Required
+- transaction_type (ENUM: payment, charge) - Required
+- description (TEXT) - Optional
+- category_id (Foreign Key to Categories) - Optional
+- transaction_date (TIMESTAMP) - Required
+- created_at (TIMESTAMP)
+5.1.3 Categories Table
+sql
+
+
+- id (Primary Key)
+- name (VARCHAR 255) - Required
+- description (TEXT) - Optional
+- color (VARCHAR 7) - Hex color code
+- created_at (TIMESTAMP)
+- updated_at (TIMESTAMP)
+5.1.4 Sessions Table
+sql
+
+
+- id (Primary Key)
+- name (VARCHAR 255) - Required
+- session_type (ENUM: practice, match) - Required
+- field_id (Foreign Key to Fields) - Optional
+- scheduled_date (TIMESTAMP) - Required
+- description (TEXT) - Optional
+- created_at (TIMESTAMP)
+- updated_at (TIMESTAMP)
+5.1.5 Fields Table
+sql
+
+
+- id (Primary Key)
+- name (VARCHAR 255) - Required
+- location (VARCHAR 255) - Optional
+- google_maps_url (TEXT) - Optional
+- latitude (NUMERIC 10,8) - Optional
+- longitude (NUMERIC 11,8) - Optional
+- created_at (TIMESTAMP)
+- updated_at (TIMESTAMP)
+5.1.6 Attendance Table
+sql
+
+
+- id (Primary Key)
+- session_id (Foreign Key to Sessions)
+- individual_id (Foreign Key to Individuals)
+- status (ENUM: present, late, absent) - Required
+- notes (TEXT) - Optional
+- marked_at (TIMESTAMP)
+- created_at (TIMESTAMP)
+- Unique Constraint: (session_id, individual_id)
+5.2 Data Validation
+5.2.1 Individual Data
+Name: Non-empty string, max 255 characters
+Email: Valid email format (optional)
+Phone: Valid phone format (optional)
+5.2.2 Transaction Data
+Amount: Positive decimal, max 10 digits with 2 decimals
+Type: Must be 'payment' or 'charge'
+Date: Valid timestamp, not in future
+5.2.3 Category Data
+Name: Non-empty string, max 255 characters
+Color: Valid hex color code (#RRGGBB)
+5.2.4 Session Data
+Name: Non-empty string
+Type: Must be 'practice' or 'match'
+Date: Valid future timestamp
+5.3 Data Retention
+Individuals: Permanently stored until deleted
+Transactions: Permanently stored until related individual deleted
+Attendance: Permanently stored until related session deleted
+Categories & Fields: Permanently stored until deleted
+Backup: Daily automated backups, retained for 30 days
+5.4 Data Privacy
+No personal data tracking: App doesn't track user behavior
+No third-party sharing: Data is never shared externally
+User control: Users can delete all their data
+Secure storage: Data encrypted at rest (if deployed with HTTPS)
+6. User Interface Requirements
+6.1 Web Platform
+6.1.1 Main Dashboard
+Header with title and navigation links
+Summary cards showing key metrics
+Individuals list with actions
+Recent transactions list
+Privacy policy link
+Management center link
+6.1.2 Individuals Management
+Add individual button
+List of all individuals
+Delete button for each individual
+Balance display (color-coded)
+Add transaction button for each individual
+Email and phone display
+6.1.3 Transactions Management
+Transaction form with all required fields
+Category selector (optional)
+Transaction list with sorting
+Date-based filtering
+Description and type display
+6.1.4 Management Center
+Tab navigation (Categories, Fields, Schedule, Attendance)
+Category creation and viewing
+Field creation and viewing
+Session creation and viewing
+Attendance marking interface
+6.1.5 Privacy Policy
+Comprehensive policy document
+Clear sections
+Contact information
+Data deletion instructions
+Accessible from main page
+6.1.6 Color Scheme
+Primary: Blue (#2563EB)
+Success: Green (#059669)
+Danger: Red (#DC2626)
+Backgrounds: Light gray (#F9FAFB)
+Text: Dark gray (#111827)
+6.2 Mobile Platform
+6.2.1 Navigation
+Tab-based navigation (Home, People, Transactions)
+Easy access to all features
+Back navigation support
+6.2.2 Home Screen
+Welcome message
+Summary metrics
+Quick action buttons
+Recent activity feed
+Privacy policy link
+6.2.3 People Screen
+List of individuals
+Add button
+Delete buttons with confirmation
+Balance display
+Contact information
+6.2.4 Transactions Screen
+Transaction form
+Recent transactions list
+Category selection
+Amount and type selection
+6.2.5 Responsiveness
+Works on all screen sizes
+Touch-friendly buttons (min 44px)
+Readable text at all sizes
+Proper spacing and padding
+6.2.6 Color Scheme
+Same as web platform for consistency
+Accessible color contrasts
+Platform-native look and feel
+6.3 Common UI Elements
+6.3.1 Forms
+Clear labels for all inputs
+Required field indicators
+Input validation messages
+Submit and cancel buttons
+Disabled state for invalid forms
+6.3.2 Lists
+Clear item display
+Actions per item
+Loading states
+Empty state messaging
+Scrolling support
+6.3.3 Modals/Dialogs
+Clear title
+Focused content
+Clear action buttons
+Close/cancel option
+Confirmation dialogs for destructive actions
+6.3.4 Alerts
+Success notifications
+Error messages
+Confirmation prompts
+Contextual messaging
+7. System Architecture
+7.1 Technology Stack
+Frontend (Web)
+Framework: React 18+ with Next.js
+State Management: TanStack React Query (data fetching)
+State Storage: Zustand (client state)
+Styling: Tailwind CSS
+UI Components: Lucide React (icons)
+Build Tool: Vite
+Frontend (Mobile)
+Framework: React Native with Expo
+Navigation: Expo Router
+State Management: TanStack React Query (data fetching)
+State Storage: Zustand
+UI Components: Lucide React Native (icons)
+Platform Support: iOS and Android
+Backend
+Runtime: Node.js
+Framework: Built-in Node.js HTTP (via Next.js API routes)
+Database Library: Custom SQL library with template tags
+API Style: RESTful
+Database
+DBMS: PostgreSQL 17+
+Schema: Normalized relational schema
+ORM: Custom SQL wrapper with parameter binding
+7.2 API Architecture
+API Design
+Style: RESTful
+Format: JSON
+Authentication: None (single-user deployment)
+Rate Limiting: Not implemented
+Versioning: Not implemented
+API Endpoints
+Individuals
+GET /api/individuals - List all individuals
+POST /api/individuals - Create individual
+GET /api/individuals/[id] - Get individual details
+PUT /api/individuals/[id] - Update individual
+DELETE /api/individuals/[id] - Delete individual (with cascade)
+Transactions
+GET /api/transactions - List all transactions
+POST /api/transactions - Create transaction
+GET /api/transactions/[id] - Get transaction details
+Categories
+GET /api/categories - List all categories
+POST /api/categories - Create category
+Fields
+GET /api/fields - List all fields
+POST /api/fields - Create field
+Sessions
+GET /api/sessions - List all sessions
+POST /api/sessions - Create session
+Attendance
+GET /api/attendance - List attendance records
+POST /api/attendance - Mark attendance
+7.3 Component Architecture
+Web Components
+Layout wrapper
+Header navigation
+Summary card
+Individual card
+Transaction card
+Form components
+Modal dialogs
+Tab navigation
+Mobile Components
+Screen layouts
+Card components
+List components
+Form inputs
+Button components
+Header/navigation
+Modal components
+7.4 Data Flow
+User Interaction Flow
+User interacts with UI
+Frontend calls API endpoint
+Backend validates input
+Database transaction executes
+Related queries updated (cascade)
+Response returned to frontend
+React Query cache invalidated
+UI re-renders with new data
+State Management Flow
+React Query manages server state
+Zustand manages client UI state
+Component state for form inputs
+Automatic sync between states
+8. Security & Privacy Requirements
+8.1 Data Security
+SEC-1.1: Data Encryption
+All data transmitted via HTTPS
+Sensitive data encrypted at rest
+Passwords hashed with strong algorithms (if added in future)
+SEC-1.2: Access Control
+Single-user per deployment (no authentication)
+Can be extended with authentication
+API endpoints secured (future requirement)
+SEC-1.3: Data Validation
+All inputs validated on backend
+SQL injection prevention via parameterized queries
+XSS prevention via React's default escaping
+SEC-1.4: Error Handling
+Generic error messages to users
+Detailed logging for developers
+No sensitive data in error messages
+8.2 Privacy Requirements
+PRI-1.1: Data Collection
+Minimal data collection (name, email, phone only)
+No tracking of user behavior
+No third-party data sharing
+PRI-1.2: User Rights
+Right to access data
+Right to modify data
+Right to delete data (FR-1.5)
+Right to receive policy updates
+PRI-1.3: Privacy Policy
+Comprehensive and clear (FR-1.1 Web, Mobile)
+Easily accessible
+Updated when practices change
+Available in multiple languages (future)
+PRI-1.4: Consent
+Users informed before adding data
+Clear indication of required vs optional fields
+Privacy policy link in all data collection flows
+8.3 Compliance
+COM-1.1: App Store Guidelines
+Meets Guideline 5.1.1 (Data Collection)
+Meets Guideline 5.1.1(v) (Account Deletion)
+GDPR-like data rights implemented
+COM-1.2: Data Protection
+Follows data protection best practices
+Secure database backups
+Data retention policies
+9. Compliance Requirements
+9.1 App Store Compliance
+COM-1.1: Data Collection & Storage (Guideline 5.1.1)
+✅ Clear privacy policy explaining data collection
+✅ Policy explains why data is collected
+✅ Policy explains how data is used
+✅ Policy confirms data is not shared with third parties
+✅ Privacy policy link on app store listing
+✅ Accessible from within the app
+COM-1.2: Account Deletion (Guideline 5.1.1(v))
+✅ Users can delete individuals and associated data
+✅ Deletion is easy and accessible
+✅ Confirmation dialog prevents accidental deletion
+✅ All related data deleted (transactions, attendance)
+✅ Feature available on both web and mobile
+9.2 GDPR Considerations
+DAT-1.1: Right to Access
+Users can view all their data in the app
+Clear display of information
+Export capability (future enhancement)
+DAT-1.2: Right to Modify
+Users can update individual information
+Changes reflected immediately
+Audit trail kept for future compliance
+DAT-1.3: Right to Erasure
+Users can delete individuals
+All associated data deleted
+Backup data purged after retention period
+DAT-1.4: Right to Data Portability
+Ability to export data (future enhancement)
+Data in standard format (CSV/JSON)
+10. Assumptions & Constraints
+10.1 Assumptions
+ASS-1.1: User Base
+Primarily used by team managers/coaches
+1-100 users per deployment
+Trusted user environment (no malicious actors)
+ASS-1.2: Data Volume
+< 1000 individuals per instance
+< 10,000 transactions per instance
+< 100 sessions per instance
+ASS-1.3: Connectivity
+Users have reliable internet connection
+Mobile users on 3G/4G or better
+Web users on broadband
+ASS-1.4: Deployment
+Single-instance deployment
+One database per deployment
+No multi-tenant requirements

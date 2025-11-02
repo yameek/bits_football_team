@@ -1,0 +1,544 @@
+Football Team Treasury & Session Management Web App
+Enhanced SRS and Flow Diagrams (based on "plan.txt" + additions from "plan_from_towiifq_vai.txt")
+Version: 1.1
+Owner: Treasurer
+Prepared for: Team and Management
+Date: 2025-11-02
+
+
+0) What’s New in v1.1 (enhancements merged from plan_from_towiifq_vai.txt)
+- Attendance status expanded from boolean present to enum present/late/absent; late counts-as-present is configurable.
+- Transaction Categories added (e.g., food fee, match fee) in addition to transaction types, with color-coding and reporting filters.
+- UI/UX enhancements: dashboard metrics, recent activity, color scheme guidance, mobile-first on-field flows.
+- Delete cascade mode for App Store Guideline 5.1.1(v): optional “hard delete” workflow that removes member and associated data (or choose “soft delete” mode for audit retention).
+- Privacy & compliance: explicit privacy policy requirements, right to access/modify/erasure; data retention/backups clarified.
+- Technology stack option pinned: Web on Next.js, Mobile on React Native/Expo; PostgreSQL; REST API (Next.js routes) with React Query + Zustand on clients.
+- Field model extended: optional lat/long; Google Maps URL; address remains.
+- Sessions: optional name/notes; schedule ranges (start/end).
+- Reporting: dashboard tiles and recent activity; CSV/PDF exports retained from v1.0.
+- Performance targets aligned (1000 members, 10k+ transactions).
+
+
+1) Overview
+1.1 Purpose
+Support a football team’s treasurer to:
+- Book fields and plan sessions (practice/match) and track upcoming sessions
+- Record attendance and automatically allocate session costs ONLY to attendees
+- Collect monthly contributions and on-field payments (including guests/new members)
+- Track team and individual balances; share transparent financials with management
+
+1.2 Goals
+- Accurate per-session fee allocation with rounding policy
+- Clear member and team balances
+- Fast on-field workflows (attendance, payments)
+- Shareable reports/dashboards; export support
+- Privacy- and compliance-ready
+
+1.3 Scope (v1)
+- Session, field, member management
+- Attendance with status (present/late/absent)
+- Cost breakdown and automatic per-head deduction
+- Contributions, on-field collections, transactions log with categories
+- Team and individual balances, reports/exports
+- RBAC (recommended) with option to run single-user mode (no auth)
+
+Out of scope (v1)
+- Online payment gateway (can be added later)
+- Push/email/SMS notifications (optional later)
+- Multi-currency and complex accounting
+- Real-time sync/offline-first (future)
+- Multi-tenant orgs (future)
+
+
+2) Stakeholders & Roles
+- Treasurer: Finance ops, sessions, attendance, approvals, reports
+- Manager/Coach: Schedule sessions, mark attendance, read-only finance summaries
+- Members: View their balance/transactions; optionally pay contributions
+- Management/Viewer: Read-only dashboards/reports
+- Admin: User/role management, system configuration
+
+RBAC can be disabled for single-user deployments. When disabled, all actions are allowed to the local user.
+
+
+3) Business Rules
+BR-01 Per-head fee = round(total_session_cost / number_present, 2)
+BR-02 Rounding difference handled via:
+  - Adjustment transaction at team level; or
+  - Distribute ±0.01 across first N attendees to exactly match total
+BR-03 Only attendees are charged; absent members are not charged under any circumstance
+BR-04 “Late” attendance status counts as present by default; configurable per session or globally
+BR-05 Contributions increase member balance; not tied to a specific session
+BR-06 Insufficient balance: allow partial deduction; remaining due covered by on-field payment or future contribution
+BR-07 On-field collection is recorded immediately; it offsets the session due first
+BR-08 Transactions are immutable in soft-delete mode; corrections use refunds/adjustments; 
+      In “hard delete” compliance mode, member deletion cascades deletes to related records
+BR-09 Team balance = sum of member balances (optionally show separate cash ledger if used)
+BR-10 Guest attendees: allow ad-hoc attendee capture; fees collected on-field; can later be converted to a member
+BR-11 Attendance uniqueness: (member_id, session_id) must be unique
+BR-12 Charges auto-apply only after session is finalized/locked
+
+
+4) Non-Functional Requirements
+- Security: HTTPS, input sanitization, password hashing (Argon2/bcrypt) if auth enabled, CSRF (if SSR), JWT/OAuth2 if RBAC enabled
+- Privacy: Minimize PII; access controls; privacy policy visible; user rights processes
+- Reliability: Daily backups; restore tested; p95 API < 500ms typical; handle 1k members, 10k+ transactions
+- Availability target: 99–99.5% (align with hosting)
+- Observability: Structured logs, error tracking (Sentry), metrics (OTel/Prometheus)
+- Accessibility: Basic WCAG AA for core flows
+- Rate limiting: For publicly reachable endpoints
+- Mobile-first on critical flows (attendance, on-field collection)
+
+
+5) Data Model (enhanced)
+5.1 Entities
+- Member(id, name, contact_number, balance, status, created_at, updated_at)
+- Field(id, name, address, google_map_link, latitude, longitude, created_at, updated_at)
+- Session(id, field_id, scheduled_start, scheduled_end, session_type [practice|match], 
+         field_cost, transport_cost, drinks_cost, emergency_fund, other_costs, notes, status [planned|completed|canceled], created_at, updated_at, name optional)
+- Attendance(id, member_id, session_id, status [present|late|absent], charged_amount, paid_amount, payment_method [balance|cash|mixed|null], paid_flag, notes, created_at, updated_at)
+- Transaction(id, member_id nullable, session_id nullable, transaction_type [contribution|session_fee|onfield_payment|refund|adjustment], 
+             category_id nullable, amount, currency, method [cash|bank|mobile], timestamp, reference, notes, created_at, updated_at)
+- Category(id, name, description, color, created_at, updated_at)
+- Guest(id, name, contact_number, notes, created_at, updated_at) optional
+- User(id, email, password_hash, role, member_id nullable, last_login_at, created_at, updated_at)
+- AuditLog(id, user_id, action, entity_type, entity_id, payload_snapshot, ip, ua, created_at)
+
+5.2 ER Diagram (Mermaid)
+erDiagram
+    MEMBER ||--o{ TRANSACTION : makes
+    MEMBER ||--o{ ATTENDANCE : attends
+    FIELD ||--|{ SESSION : hosts
+    SESSION ||--|{ ATTENDANCE : records
+    SESSION ||--o{ TRANSACTION : relates
+    CATEGORY ||--o{ TRANSACTION : classifies
+    USER ||--o| MEMBER : may_link
+
+    MEMBER {
+        int id PK
+        string name
+        string contact_number
+        decimal balance
+        string status
+        datetime created_at
+        datetime updated_at
+    }
+    FIELD {
+        int id PK
+        string name
+        string address
+        string google_map_link
+        decimal latitude
+        decimal longitude
+        datetime created_at
+        datetime updated_at
+    }
+    SESSION {
+        int id PK
+        int field_id FK
+        string name
+        datetime scheduled_start
+        datetime scheduled_end
+        enum session_type
+        decimal field_cost
+        decimal transport_cost
+        decimal drinks_cost
+        decimal emergency_fund
+        decimal other_costs
+        string notes
+        enum status
+        datetime created_at
+        datetime updated_at
+    }
+    ATTENDANCE {
+        int id PK
+        int member_id FK
+        int session_id FK
+        enum status  // present|late|absent
+        decimal charged_amount
+        decimal paid_amount
+        enum payment_method
+        boolean paid_flag
+        string notes
+        datetime created_at
+        datetime updated_at
+        UNIQUE (member_id, session_id)
+    }
+    CATEGORY {
+        int id PK
+        string name
+        string description
+        string color
+        datetime created_at
+        datetime updated_at
+    }
+    TRANSACTION {
+        int id PK
+        int member_id FK nullable
+        int session_id FK nullable
+        int category_id FK nullable
+        enum transaction_type
+        decimal amount
+        string currency
+        enum method
+        datetime timestamp
+        string reference
+        string notes
+        datetime created_at
+        datetime updated_at
+    }
+    USER {
+        int id PK
+        string email
+        string password_hash
+        enum role
+        int member_id FK nullable
+        datetime last_login_at
+        datetime created_at
+        datetime updated_at
+    }
+
+5.3 SQL DDL (PostgreSQL)
+CREATE TABLE members (
+    id SERIAL PRIMARY KEY,
+    name VARCHAR(100) NOT NULL,
+    contact_number VARCHAR(20),
+    balance DECIMAL(12,2) NOT NULL DEFAULT 0.00,
+    status VARCHAR(20) NOT NULL DEFAULT 'active',
+    created_at TIMESTAMP NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMP NOT NULL DEFAULT NOW()
+);
+
+CREATE TABLE fields (
+    id SERIAL PRIMARY KEY,
+    name VARCHAR(100) NOT NULL,
+    address TEXT,
+    google_map_link VARCHAR(255),
+    latitude NUMERIC(10,8),
+    longitude NUMERIC(11,8),
+    created_at TIMESTAMP NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMP NOT NULL DEFAULT NOW()
+);
+
+CREATE TABLE categories (
+    id SERIAL PRIMARY KEY,
+    name VARCHAR(255) NOT NULL,
+    description TEXT,
+    color VARCHAR(7),
+    created_at TIMESTAMP NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMP NOT NULL DEFAULT NOW()
+);
+
+CREATE TABLE sessions (
+    id SERIAL PRIMARY KEY,
+    field_id INT REFERENCES fields(id) ON DELETE SET NULL,
+    name VARCHAR(255),
+    scheduled_start TIMESTAMP NOT NULL,
+    scheduled_end TIMESTAMP,
+    session_type VARCHAR(20) NOT NULL CHECK (session_type IN ('practice','match')),
+    field_cost DECIMAL(12,2) NOT NULL DEFAULT 0.00,
+    transport_cost DECIMAL(12,2) NOT NULL DEFAULT 0.00,
+    drinks_cost DECIMAL(12,2) NOT NULL DEFAULT 0.00,
+    emergency_fund DECIMAL(12,2) NOT NULL DEFAULT 0.00,
+    other_costs DECIMAL(12,2) NOT NULL DEFAULT 0.00,
+    notes TEXT,
+    status VARCHAR(20) NOT NULL DEFAULT 'planned',
+    created_at TIMESTAMP NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMP NOT NULL DEFAULT NOW()
+);
+
+CREATE TABLE attendance (
+    id SERIAL PRIMARY KEY,
+    member_id INT NOT NULL REFERENCES members(id) ON DELETE CASCADE,
+    session_id INT NOT NULL REFERENCES sessions(id) ON DELETE CASCADE,
+    status VARCHAR(10) NOT NULL CHECK (status IN ('present','late','absent')),
+    charged_amount DECIMAL(12,2) NOT NULL DEFAULT 0.00,
+    paid_amount DECIMAL(12,2) NOT NULL DEFAULT 0.00,
+    payment_method VARCHAR(10) CHECK (payment_method IN ('balance','cash','mixed')),
+    paid_flag BOOLEAN NOT NULL DEFAULT FALSE,
+    notes TEXT,
+    created_at TIMESTAMP NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMP NOT NULL DEFAULT NOW(),
+    UNIQUE (member_id, session_id)
+);
+
+CREATE TABLE transactions (
+    id SERIAL PRIMARY KEY,
+    member_id INT REFERENCES members(id) ON DELETE CASCADE,
+    session_id INT REFERENCES sessions(id) ON DELETE SET NULL,
+    category_id INT REFERENCES categories(id) ON DELETE SET NULL,
+    transaction_type VARCHAR(30) NOT NULL CHECK (transaction_type IN ('contribution','session_fee','onfield_payment','refund','adjustment')),
+    amount DECIMAL(12,2) NOT NULL,
+    currency VARCHAR(10) NOT NULL DEFAULT 'USD',
+    method VARCHAR(10) CHECK (method IN ('cash','bank','mobile')),
+    timestamp TIMESTAMP NOT NULL DEFAULT NOW(),
+    reference VARCHAR(100),
+    notes TEXT,
+    created_at TIMESTAMP NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMP NOT NULL DEFAULT NOW()
+);
+
+-- Optional auth/audit (enable if RBAC is on)
+CREATE TABLE users (
+    id SERIAL PRIMARY KEY,
+    email VARCHAR(150) UNIQUE NOT NULL,
+    password_hash VARCHAR(255) NOT NULL,
+    role VARCHAR(20) NOT NULL CHECK (role IN ('admin','treasurer','manager','member','viewer')),
+    member_id INT REFERENCES members(id) ON DELETE SET NULL,
+    last_login_at TIMESTAMP,
+    created_at TIMESTAMP NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMP NOT NULL DEFAULT NOW()
+);
+
+CREATE TABLE audit_logs (
+    id SERIAL PRIMARY KEY,
+    user_id INT REFERENCES users(id) ON DELETE SET NULL,
+    action VARCHAR(50) NOT NULL,
+    entity_type VARCHAR(50) NOT NULL,
+    entity_id INT,
+    payload_snapshot JSONB,
+    ip INET,
+    ua TEXT,
+    created_at TIMESTAMP NOT NULL DEFAULT NOW()
+);
+
+Indexes:
+- attendance(member_id), attendance(session_id), attendance(status)
+- transactions(member_id), transactions(session_id), transactions(timestamp), transactions(category_id)
+- sessions(field_id, scheduled_start)
+
+
+6) Core Algorithms
+6.1 Total Session Cost
+total_cost = field_cost + transport_cost + drinks_cost + emergency_fund + other_costs
+
+6.2 Headcount
+present_count = count(attendance where status in ('present','late') respecting config for late)
+
+6.3 Per-Head Fee
+raw_fee = total_cost / present_count
+per_head_fee = round(raw_fee, 2)
+rounding_diff = total_cost - (per_head_fee * present_count)
+Handle rounding_diff per BR-02
+
+6.4 Auto-Deduction
+For each attendee counted as present:
+- if balance >= per_head_fee:
+    - create transaction(session_fee, -per_head_fee, method=balance, category optional e.g., "match fee")
+    - member.balance -= per_head_fee
+    - attendance.charged_amount = per_head_fee
+    - attendance.paid_amount += per_head_fee
+    - attendance.paid_flag = true; payment_method='balance'
+- else:
+    - deduct partial if any balance > 0; set due = per_head_fee - partial
+    - record session_fee for partial; zero out balance
+    - attendance.charged_amount = per_head_fee
+    - attendance.paid_amount += partial
+    - paid_flag=false; payment_method='mixed' or null
+
+6.5 On-Field Collection
+- transaction(onfield_payment, +amount, method=cash/mobile, session_id set)
+- Apply to unpaid attendance for that session first
+- When paid_amount >= charged_amount => paid_flag = true
+
+6.6 Contributions
+- transaction(contribution, +amount, category optional like "monthly contribution")
+- member.balance += amount
+
+6.7 Deletion Mode
+- Soft-delete (default for audit): deactivate member; prevent new activity; retain data
+- Hard-delete (compliance mode): cascade delete attendance, transactions; remove PII; log audit anonymized “erasure” event
+
+
+7) API Design (REST)
+Auth (optional if RBAC enabled)
+- POST /auth/login
+- POST /auth/logout
+- POST /auth/refresh
+
+Members
+- GET /members
+- GET /members/{id}
+- POST /members
+- PUT /members/{id}
+- DELETE /members/{id}?mode=soft|hard
+- POST /members/{id}/contributions  {amount, method, category_id?, reference?}
+- GET /members/{id}/transactions
+- GET /members/{id}/attendance
+
+Fields
+- GET /fields
+- POST /fields
+- PUT /fields/{id}
+
+Categories
+- GET /categories
+- POST /categories
+- DELETE /categories/{id}
+
+Sessions
+- GET /sessions?status=planned&from=&to=
+- POST /sessions
+- GET /sessions/{id}
+- PUT /sessions/{id}
+- POST /sessions/{id}/attendance/bulk  [{member_id, status, notes?}]
+- POST /sessions/{id}/finalize  (locks costs; computes fees; creates transactions)
+- POST /sessions/{id}/onfield-collection  {member_id or guest_id or guest_name, amount, method}
+
+Transactions
+- GET /transactions?member_id=&session_id=&type=&category_id=&from=&to=
+- POST /transactions/adjustment  {amount, reason, session_id?}
+- GET /reports/session/{session_id}
+- GET /reports/member/{member_id}?from=&to=
+- GET /reports/team-summary?from=&to=
+- GET /exports/{type}?from=&to=  (csv/pdf)
+
+Admin (if RBAC enabled)
+- GET /users
+- POST /users
+- PUT /users/{id}
+- GET /audit?from=&to=&user_id=
+
+
+8) UI/UX Requirements
+8.1 Dashboard
+- Tiles: Team balance, #members, positives/negatives, upcoming sessions
+- Recent activity: last 5–10 transactions
+- Quick actions: Add contribution, Create session, Mark attendance
+
+8.2 Calendar & Sessions
+- Month/week list; filter by type/status
+- Session detail: field info, map link, costs, per-head fee, attendance list, paid/unpaid tags, on-field collection
+
+8.3 Attendance Marking (mobile-first)
+- Search member, toggle status present/late/absent
+- Bulk present/absent actions; save draft
+- Finalize session action requires at least one present
+
+8.4 Members
+- List with search, balance chips (green/red)
+- Member detail: balance, transactions, attendance history
+- Add contribution; refund/adjustment (role-permitted)
+
+8.5 Transactions & Categories
+- Transactions list with filters (type, category, date range)
+- Categories manager: create “food fee”, “match fee”, etc. with colors
+
+8.6 Sharing & Exports
+- Read-only share links (tokenized) or export PDF/CSV for management
+
+8.7 Color Guidance (optional)
+- Primary: #2563EB; Success: #059669; Danger: #DC2626; BG: #F9FAFB; Text: #111827
+
+
+9) Security, Privacy, Compliance
+- HTTPS; parameterized queries; input validation; XSS/CSRF protections
+- Password hashing Argon2id/bcrypt (if auth); JWT access/refresh; short-lived tokens
+- RBAC server-side checks; audit logging of sensitive actions
+- Privacy policy accessible in app and sharable
+- User rights: access, modify, erase (soft/hard delete modes)
+- Backups: daily full; 30-day retention; ensure erase requests purge from active DB; backups purged upon retention expiry
+- App Store Guideline 5.1.1(v): in-app data deletion for individuals with confirmation dialog
+
+
+10) Technology Stack (recommended)
+Web: Next.js (React 18+), Tailwind CSS, Lucide React icons
+Mobile: React Native + Expo, Expo Router, Lucide RN
+State: TanStack React Query (server state), Zustand (UI state)
+Backend: Next.js API routes (Node.js); REST JSON
+DB: PostgreSQL 14+ (17+ compatible)
+Data: SQL via library/ORM (e.g., Prisma or parameterized SQL)
+Deploy: Docker; Fly.io/Render/Heroku/AWS
+Observability: Sentry + OpenTelemetry
+
+
+11) Acceptance Criteria (selected)
+AC-01 Session finalize charges only attendees (present/late if configured) and leaves absentees untouched
+AC-02 Member with insufficient balance: partial deduction recorded; unpaid due cleared by on-field payment; paid_flag toggles when fully covered
+AC-03 Rounding: totals exactly match cost using chosen rounding policy
+AC-04 Contribution increases balance and logs as contribution transaction; category optional
+AC-05 Hard delete mode: deleting a member cascades attendance/transactions; confirmation dialog shown
+AC-06 Dashboard shows team balance = sum(member balances), counts of positive/negative balances, upcoming sessions
+AC-07 Categories: user can create/view/delete; transactions filterable by category
+
+
+12) Flow Diagrams (Mermaid)
+
+12.1 Session Lifecycle & Payment
+flowchart TD
+    A[Create Session] --> B[Enter Costs<br/>(Field, Transport, Drinks, Emergency, Other)]
+    B --> C[Schedule Date/Time & Field]
+    C --> D[Mark Attendance: Present/Late/Absent]
+    D --> E{Finalize Session?}
+    E -- No --> D
+    E -- Yes --> F[Compute Total & Per-Head Fee]
+    F --> G{Any billable attendees?}
+    G -- No --> H[Abort Fees<br/>Notify & Log]
+    G -- Yes --> I[Auto-Deduct per attendee]
+    I --> J{Sufficient Balance?}
+    J -- Yes --> K[Create session_fee Tx<br/>Update Balance<br/>Mark Paid]
+    J -- No --> L[Partial Deduction<br/>Record Due]
+    L --> M[On-Field Collection or Contribution]
+    M --> N[Reconcile Dues<br/>Mark Paid when covered]
+    K --> O[Handle Rounding Adjustment]
+    N --> O
+    O --> P[Generate Session Report]
+    P --> Q[Session Complete]
+
+12.2 Contribution Flow
+flowchart LR
+    C1[Receive Contribution] --> C2[Create contribution Tx]
+    C2 --> C3[Increase Member Balance]
+    C3 --> C4[Reflect in Team Balance & Statement]
+
+12.3 Category Management
+flowchart LR
+    X1[Create Category<br/>(e.g., Food Fee)] --> X2[Assign to Transactions]
+    X2 --> X3[Filter Reports by Category]
+    X3 --> X4[Insights & Budgeting]
+
+12.4 Deletion (Compliance vs Audit)
+flowchart TD
+    D1[Delete Member Action] --> D2{Mode?}
+    D2 -- Soft --> D3[Deactivate Member<br/>Retain Records]
+    D2 -- Hard --> D4[Cascade Delete<br/>Transactions & Attendance]
+    D3 --> D5[Reporting Notes: Exclude by default]
+    D4 --> D6[Audit Log Erasure Event]
+
+
+13) Reports & Exports
+- Session Report: costs, headcount, per-head fee, paid/unpaid list, rounding adjustment or distribution
+- Member Statement: opening, transactions (with type/category), closing balance
+- Team Summary: totals of contributions, session costs, team balance over time
+- Exports: CSV/PDF for sessions, statements, summaries
+
+
+14) Implementation Roadmap
+Phase 1 (MVP)
+- Members, fields, sessions (plan/complete)
+- Attendance (present/late/absent)
+- Fee calculation & auto-deduction
+- Contributions & on-field collections
+- Categories and transaction filters
+- Balances and basic dashboard
+Phase 2
+- Exports (CSV/PDF), read-only share links
+- Rounding policy toggle; audit logs
+- Mobile polish for on-field flows
+Phase 3
+- Notifications, payment integrations
+- Advanced analytics; budgeting by category
+- Multi-team/org (multi-tenant)
+
+15) Test Scenarios (sample)
+- Total cost 150; present=10 => per-head 15; 10 session_fee tx; all paid if balances sufficient
+- Member balance 5; per-head 12: deduct 5, due 7; on-field 7 clears due; paid_flag true
+- Late attendees billed if config on; toggling off excludes late from charges
+- Rounding: total 100; present=3 => 33.33 each; +0.01 adjustment to match 100
+- Category reports: filter “food fee” across month; totals match sum of categorized tx
+- Hard delete removes member + records; audit logs show erasure event; privacy policy visible
+
+Notes for Treasurer
+- Mark attendance before finalize to avoid mischarges
+- Use on-field collection to clear dues immediately, especially for guests/new members
+- Categories help separate “contribution”, “food fee”, “match fee” analytics
+- Share reports with management via exports or tokenized read-only links

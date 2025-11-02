@@ -1,0 +1,219 @@
+prompt::
+
+I am new tresures of a fotball team
+i have to do following things
+1. booking football field for a session (practice or match)
+2. collect monthly contribution fee from the members 
+3. collect attendeace for each session 
+4. auto deduct session fee from each members (total session fee = session cost/ attendace)
+5. sometimes new mebers come to practice then i will collect on field collectoin and processt the session fee
+
+6. if a member who contributed montly did not attend the sesion then i will not deduct form his blance only presnet members are allowd 
+7. i have to keep track of total team balance and indivitual balance 
+
+session fee consists
+filed fee , drink ,trnasportation, emargncey cost etc
+
+also 
+filed information consits of filed name adress and gmap
+
+member has 
+name contact number and id
+
+i may have to share this expnce and tresury status to my team and managment 
+
+
+
+trnasaction can be slected like contribution , food fee, match fee 
+
+also i have to keep track of upcomming sesstions 
+
+plan ahead and give me srs for web app
+
+also give me a flow diagram for this applicaiton 
+-------------------------------------------------------------------------------------------------
+
+erDiagram
+    MEMBER ||--o{ TRANSACTION : makes
+    MEMBER {
+        int id PK
+        string name
+        string contact_number
+        float balance
+    }
+    FIELD ||--|{ SESSION : hosts
+    FIELD {
+        int id PK
+        string name
+        string address
+        string google_map_link
+    }
+    SESSION ||--|{ ATTENDANCE : records
+    SESSION {
+        int id PK
+        date scheduled_date
+        enum session_type
+        float field_cost
+        float transport_cost
+        float drinks_cost
+        float emergency_fund
+    }
+    ATTENDANCE {
+        int id PK
+        int member_id FK
+        int session_id FK
+        boolean paid
+    }
+    TRANSACTION {
+        int id PK
+        int member_id FK
+        enum transaction_type
+        float amount
+        datetime timestamp
+    }
+
+    The entity relationship diagram above shows the core database structure where:
+
+Each member can have multiple transactions (contributions, fees, etc.)
+Fields host multiple sessions
+Sessions record attendance and costs
+Attendance tracks which members participated in each session
+Transactions log all financial movements
+Key points about the diagram:
+
+session_type in SESSION table stores values like 'practice', 'match', etc.
+transaction_type in TRANSACTION table stores values like 'contribution', 'field_fee', 'transportation', etc.
+The 'paid' flag in ATTENDANCE indicates if the session fee has been deducted from the member's balance
+Core Features
+Session Management
+Field booking system with calendar view
+Session type selection (practice/match)
+Cost breakdown tracking (field, transportation, drinks, emergency fund)
+Upcoming sessions calendar
+Member Management
+Member registration and profile management
+Individual balance tracking
+Contact information storage
+Attendance history
+Financial Management
+Monthly contribution collection
+Automatic session fee calculation
+On-field payment processing
+Transaction logging
+Balance tracking (team and individual)
+
+flowchart TD
+    Start[New Session] --> Book[Book Field]
+    
+    subgraph Costs["Cost Collection"]
+        direction TB
+        Book --> Field["Field Fee"]
+        Book --> Trans["Transport Fee"]
+        Book --> Other["Other Costs<br/>(Drinks, Emergency)"]
+        
+        Field & Trans & Other --> Total["Calculate Total<br/>Session Cost"]
+    end
+    
+    subgraph Attendance["Attendance Tracking"]
+        direction TB
+        Total --> Mark["Mark Attendance"]
+        Mark --> Present{"Present?"}
+        Present -->|"Yes"| Deduct["Deduct Session Fee<br/>from Balance"]
+        Present -->|"No"| Skip["Skip Deduction"]
+    end
+    
+    subgraph Payment["Payment Handling"]
+        direction TB
+        Deduct --> Check{"Enough<br/>Balance?"}
+        Check -->|"Yes"| Success["Complete<br/>Payment"]
+        Check -->|"No"| Collect["Collect<br/>On-field"]
+        Collect --> Update["Update<br/>Balance"]
+        Update --> Success
+    end
+    
+    Success --> End[Session Complete]
+    
+    classDef process fill:#90CAF9,stroke:#1565C0,color:#000
+    classDef decision fill:#FFE082,stroke:#FFA000,color:#000
+    classDef group fill:#E3F2FD,stroke:#90CAF9,color:#000
+    
+    class Start,End,Field,Trans,Other,Total,Mark,Deduct,Skip,Success,Collect,Update process
+    class Present,Check decision
+    class Costs,Attendance,Payment group
+
+    The flow diagram illustrates the complete lifecycle of a session, where:
+
+Costs are collected in parallel (field fee, transport fee, and other costs) before calculating the total session cost
+Attendance must be marked before any fees are deducted
+Members with sufficient balance have fees automatically deducted
+On-field collections update the member's balance after payment
+Technical Specifications
+
+
+CREATE TABLE members (
+    id INT PRIMARY KEY,
+    name VARCHAR(100),
+    contact_number VARCHAR(20),
+    balance DECIMAL(10,2)
+);
+
+CREATE TABLE fields (
+    id INT PRIMARY KEY,
+    name VARCHAR(100),
+    address TEXT,
+    google_map_link VARCHAR(255)
+);
+
+CREATE TABLE sessions (
+    id INT PRIMARY KEY,
+    field_id INT,
+    scheduled_date DATETIME,
+    session_type ENUM('practice', 'match'),
+    field_cost DECIMAL(10,2),
+    transport_cost DECIMAL(10,2),
+    drinks_cost DECIMAL(10,2),
+    emergency_fund DECIMAL(10,2),
+    FOREIGN KEY (field_id) REFERENCES fields(id)
+);
+
+CREATE TABLE attendance (
+    id INT PRIMARY KEY,
+    member_id INT,
+    session_id INT,
+    present BOOLEAN,
+    FOREIGN KEY (member_id) REFERENCES members(id),
+    FOREIGN KEY (session_id) REFERENCES sessions(id)
+);
+
+CREATE TABLE transactions (
+    id INT PRIMARY KEY,
+    member_id INT,
+    transaction_type ENUM('contribution', 'field_fee', 'transport', 'drinks'),
+    amount DECIMAL(10,2),
+    timestamp DATETIME,
+    FOREIGN KEY (member_id) REFERENCES members(id)
+);
+
+Backend API Requirements
+RESTful endpoints for CRUD operations
+Authentication middleware
+Rate limiting for API calls
+Input validation
+Error handling and logging
+Frontend Requirements
+Responsive design for desktop/mobile
+Calendar view for session scheduling
+Real-time attendance marking
+Balance dashboard
+Transaction history view
+Security Considerations
+Data Protection
+HTTPS encryption
+Password hashing
+Secure token storage
+Regular backups
+Access Control
+Role-based permissions
+Session timeout
+Audit logging
+Input sanitization

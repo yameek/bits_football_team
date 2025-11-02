@@ -1,0 +1,557 @@
+Football Team Treasury & Session Management Web App
+Software Requirements Specification (SRS) and Flow Diagrams
+Version: 1.0
+Owner: Treasurer
+Prepared for: Team and Management
+
+
+1. Overview
+1.1 Purpose
+This web application supports a football team’s treasurer in:
+- Booking fields for practice or matches
+- Managing upcoming sessions
+- Collecting monthly contributions
+- Recording attendance per session
+- Automatically calculating and deducting per-session fees from present members only
+- Handling on-field collections for guests/new members
+- Tracking team-level and individual balances
+- Sharing financial and session status with team and management
+
+1.2 Goals and Key Outcomes
+- Eliminate manual calculations and errors for per-session fee distribution
+- Provide transparent balances for members and management
+- Streamline on-field and online payments and logging
+- Maintain a reliable audit trail and reports
+
+1.3 In-Scope
+- Session scheduling and field booking info storage
+- Attendance tracking and per-session fee allocation/deduction
+- Monthly contributions and on-field collections
+- Member balances and team aggregate balance
+- Transaction history and exportable reports
+- Role-based access (Treasurer, Manager, Member, Admin)
+- Basic notifications (email/SMS optional) and shareable dashboards
+- Secure authentication and authorization
+
+1.4 Out-of-Scope (v1)
+- Online payment gateway integration (can be added later)
+- Multi-currency, taxes
+- Complex accounting (depreciation, liabilities, accruals)
+- Inventory management for equipment
+
+
+2. Stakeholders and Roles
+2.1 Stakeholders
+- Treasurer: Manages finances, sessions, attendance, and payments
+- Manager/Coach: Schedules sessions, views status
+- Members/Players: View balance, attendance, pay contributions
+- Management: Read-only access to financial summaries and reports
+- System Admin: Config and maintenance
+
+2.2 Roles & Permissions
+- Admin: Full access (manage users, configurations, all data)
+- Treasurer: Full finance, sessions, attendance, field info; share dashboards; exports
+- Manager: Create sessions, fields; mark attendance; read financial summaries
+- Member: View own balance, attendance, statements; pay contributions
+- Viewer (Management): Read-only dashboards/reports
+
+Access control: Role-based; enforce at API and UI route levels.
+
+
+3. Definitions and Glossary
+- Session: A scheduled practice or match at a field with costs
+- Attendance: Record of member present/absent for a session
+- Contribution: Monthly member payment that increases member balance
+- Session fee: Total session cost allocated equally among present members
+- On-field collection: Immediate payment from attendee (member or guest) at session time
+- Balance: Member’s running balance (credit positive, debit negative or vice versa per design)
+- Team balance: Sum of all member balances (and optionally treasury cash ledger)
+
+
+4. High-Level Functional Requirements
+FR-01 Create and manage fields with name, address, Google Maps link
+FR-02 Create and manage sessions with date/time, field, type (practice/match), and cost breakdown (field, transport, drinks, emergency)
+FR-03 Show upcoming sessions calendar with filters
+FR-04 Register members with name, contact number; unique member ID
+FR-05 Record attendance per session (present/absent)
+FR-06 Compute total session cost and per-head fee = total_session_cost / number_present
+FR-07 Deduct per-head fee automatically only from present members with sufficient balance
+FR-08 Handle insufficient balance: mark due, collect on-field, or partial collection
+FR-09 Record monthly contributions as transactions; increase member balance
+FR-10 Record on-field collections and apply to session fees
+FR-11 Ensure absent members are never charged for the session (even if they contributed monthly)
+FR-12 Maintain member-level and team-level balances
+FR-13 Transaction logging for all financial movements with type, amount, timestamp
+FR-14 Export reports: per-session report, monthly contributions report, member statements, team summary
+FR-15 Share read-only links or PDFs with management
+FR-16 Authentication and authorization (role-based)
+FR-17 Input validation, error handling, audit logging
+FR-18 Basic notifications (optional): reminders for contributions, session announcements, dues
+FR-19 Search and filter members, sessions, transactions
+FR-20 Mobile-responsive UI for on-field usage
+
+Business Rules
+BR-01 Per-head session fee = round(total_session_cost / headcount_present, 2).
+BR-02 Rounding residual must be handled either via a team-level rounding adjustment transaction or distributed +$0.01 to first N attendees to match exact total.
+BR-03 Only present attendees are charged; absent members are not charged.
+BR-04 Monthly contribution increases member balance and is not tied to any specific session.
+BR-05 On insufficient balance, allow recording a due and later reconciliation via contribution/on-field collection.
+BR-06 On-field collection can be logged as a positive transaction that immediately offsets the session fee.
+BR-07 Attendance (member_id, session_id) must be unique.
+BR-08 A transaction must never be deleted; use soft-delete if needed and maintain an audit trail.
+BR-09 Team balance is the sum of all member balances. If a separate treasury cash ledger is kept, present both views clearly.
+BR-10 Guest attendee handling: allow “guest” entity or ad-hoc attendee name; fees collected on-field do not affect member balances unless the guest is promoted to member.
+
+
+5. Non-Functional Requirements
+NFR-01 Security: HTTPS, secure password hashing (Argon2/bcrypt), JWT/OAuth2 tokens, CSRF protection (if SSR), input sanitization
+NFR-02 Privacy: Restrict PII exposure to permitted roles, audit access
+NFR-03 Reliability: Daily backups, point-in-time recovery for DB
+NFR-04 Performance: <300ms p95 for list endpoints; scalable to 200 members and 1k sessions/year
+NFR-05 Availability: 99.5% monthly (self-hosted target) or align with hosting SLA
+NFR-06 Usability: Mobile-first for attendance and on-field payments
+NFR-07 Observability: Structured logs, metrics, error tracking (Sentry/OpenTelemetry)
+NFR-08 Internationalization: Support locale/currency settings in future
+NFR-09 Rate limiting: Protect public endpoints against abuse
+NFR-10 Accessibility: Basic WCAG AA for core flows
+
+
+6. Data Model
+6.1 Entities
+- Member(id, name, contact_number, balance, created_at, updated_at, status)
+- Field(id, name, address, google_map_link, created_at, updated_at)
+- Session(id, field_id, scheduled_start, scheduled_end, session_type [practice|match], field_cost, transport_cost, drinks_cost, emergency_fund, notes, status [planned|completed|canceled], created_at, updated_at)
+- Attendance(id, member_id, session_id, present, charged_amount, paid_amount, payment_method [balance|cash|mixed], paid_flag, notes, created_at, updated_at)
+- Transaction(id, member_id (nullable for team-level or guest), session_id (nullable), transaction_type [contribution|session_fee|onfield_payment|refund|adjustment], amount, currency, method [cash|bank|mobile], timestamp, reference, notes, created_at, updated_at)
+- Guest(id, name, contact_number, notes, created_at, updated_at) optional
+- User(id, email, password_hash, role, member_id (nullable), last_login_at, created_at, updated_at)
+- AuditLog(id, user_id, action, entity_type, entity_id, payload_snapshot, ip, ua, created_at)
+
+6.2 ER Diagram (Mermaid)
+erDiagram
+    MEMBER ||--o{ TRANSACTION : makes
+    MEMBER ||--o{ ATTENDANCE : has
+    FIELD ||--|{ SESSION : hosts
+    SESSION ||--|{ ATTENDANCE : records
+    SESSION ||--o{ TRANSACTION : relates
+    USER ||--o| MEMBER : may_link
+    MEMBER {
+        int id PK
+        string name
+        string contact_number
+        decimal balance
+        string status
+        datetime created_at
+        datetime updated_at
+    }
+    FIELD {
+        int id PK
+        string name
+        string address
+        string google_map_link
+        datetime created_at
+        datetime updated_at
+    }
+    SESSION {
+        int id PK
+        int field_id FK
+        datetime scheduled_start
+        datetime scheduled_end
+        enum session_type
+        decimal field_cost
+        decimal transport_cost
+        decimal drinks_cost
+        decimal emergency_fund
+        string notes
+        enum status
+        datetime created_at
+        datetime updated_at
+    }
+    ATTENDANCE {
+        int id PK
+        int member_id FK
+        int session_id FK
+        boolean present
+        decimal charged_amount
+        decimal paid_amount
+        enum payment_method
+        boolean paid_flag
+        string notes
+        datetime created_at
+        datetime updated_at
+    }
+    TRANSACTION {
+        int id PK
+        int member_id FK nullable
+        int session_id FK nullable
+        enum transaction_type
+        decimal amount
+        string currency
+        enum method
+        datetime timestamp
+        string reference
+        string notes
+        datetime created_at
+        datetime updated_at
+    }
+    USER {
+        int id PK
+        string email
+        string password_hash
+        enum role
+        int member_id FK nullable
+        datetime last_login_at
+        datetime created_at
+        datetime updated_at
+    }
+
+6.3 SQL DDL (Baseline)
+- Use proper constraints, indexes, and unique keys. Suggested MySQL/PostgreSQL DDL inspired by your outline:
+
+CREATE TABLE members (
+    id SERIAL PRIMARY KEY,
+    name VARCHAR(100) NOT NULL,
+    contact_number VARCHAR(20),
+    balance DECIMAL(12,2) NOT NULL DEFAULT 0.00,
+    status VARCHAR(20) NOT NULL DEFAULT 'active',
+    created_at TIMESTAMP NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMP NOT NULL DEFAULT NOW()
+);
+
+CREATE TABLE fields (
+    id SERIAL PRIMARY KEY,
+    name VARCHAR(100) NOT NULL,
+    address TEXT,
+    google_map_link VARCHAR(255),
+    created_at TIMESTAMP NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMP NOT NULL DEFAULT NOW()
+);
+
+CREATE TABLE sessions (
+    id SERIAL PRIMARY KEY,
+    field_id INT NOT NULL REFERENCES fields(id),
+    scheduled_start TIMESTAMP NOT NULL,
+    scheduled_end TIMESTAMP,
+    session_type VARCHAR(20) NOT NULL CHECK (session_type IN ('practice','match')),
+    field_cost DECIMAL(12,2) NOT NULL DEFAULT 0.00,
+    transport_cost DECIMAL(12,2) NOT NULL DEFAULT 0.00,
+    drinks_cost DECIMAL(12,2) NOT NULL DEFAULT 0.00,
+    emergency_fund DECIMAL(12,2) NOT NULL DEFAULT 0.00,
+    notes TEXT,
+    status VARCHAR(20) NOT NULL DEFAULT 'planned',
+    created_at TIMESTAMP NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMP NOT NULL DEFAULT NOW()
+);
+
+CREATE TABLE attendance (
+    id SERIAL PRIMARY KEY,
+    member_id INT NOT NULL REFERENCES members(id),
+    session_id INT NOT NULL REFERENCES sessions(id),
+    present BOOLEAN NOT NULL DEFAULT FALSE,
+    charged_amount DECIMAL(12,2) NOT NULL DEFAULT 0.00,
+    paid_amount DECIMAL(12,2) NOT NULL DEFAULT 0.00,
+    payment_method VARCHAR(10) CHECK (payment_method IN ('balance','cash','mixed')),
+    paid_flag BOOLEAN NOT NULL DEFAULT FALSE,
+    notes TEXT,
+    created_at TIMESTAMP NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMP NOT NULL DEFAULT NOW(),
+    UNIQUE (member_id, session_id)
+);
+
+CREATE TABLE transactions (
+    id SERIAL PRIMARY KEY,
+    member_id INT REFERENCES members(id),
+    session_id INT REFERENCES sessions(id),
+    transaction_type VARCHAR(30) NOT NULL CHECK (transaction_type IN ('contribution','session_fee','onfield_payment','refund','adjustment')),
+    amount DECIMAL(12,2) NOT NULL,
+    currency VARCHAR(10) NOT NULL DEFAULT 'USD',
+    method VARCHAR(10) CHECK (method IN ('cash','bank','mobile')),
+    timestamp TIMESTAMP NOT NULL DEFAULT NOW(),
+    reference VARCHAR(100),
+    notes TEXT,
+    created_at TIMESTAMP NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMP NOT NULL DEFAULT NOW()
+);
+
+-- Optional user and audit tables for auth and auditing
+CREATE TABLE users (
+    id SERIAL PRIMARY KEY,
+    email VARCHAR(150) UNIQUE NOT NULL,
+    password_hash VARCHAR(255) NOT NULL,
+    role VARCHAR(20) NOT NULL CHECK (role IN ('admin','treasurer','manager','member','viewer')),
+    member_id INT REFERENCES members(id),
+    last_login_at TIMESTAMP,
+    created_at TIMESTAMP NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMP NOT NULL DEFAULT NOW()
+);
+
+CREATE TABLE audit_logs (
+    id SERIAL PRIMARY KEY,
+    user_id INT REFERENCES users(id),
+    action VARCHAR(50) NOT NULL,
+    entity_type VARCHAR(50) NOT NULL,
+    entity_id INT,
+    payload_snapshot JSONB,
+    ip INET,
+    ua TEXT,
+    created_at TIMESTAMP NOT NULL DEFAULT NOW()
+);
+
+Indexes:
+- attendance(member_id), attendance(session_id)
+- transactions(member_id), transactions(session_id), transactions(timestamp)
+- sessions(field_id, scheduled_start)
+
+
+7. Core Algorithms
+7.1 Per-Session Fee Calculation
+- total_cost = field_cost + transport_cost + drinks_cost + emergency_fund
+- present_count = count(attendance where present = true)
+- If present_count = 0: no charges; stop
+- raw_fee = total_cost / present_count
+- per_head_fee = round(raw_fee, 2)
+- rounding_diff = total_cost - (per_head_fee * present_count)
+- If rounding_diff != 0:
+  - Option A: Create one team-level 'adjustment' transaction for rounding_diff
+  - Option B: Distribute 0.01 adjustments across first |rounding_diff * 100| attendees
+
+7.2 Auto-Deduction Workflow
+- For each present attendee:
+  - if member.balance >= per_head_fee:
+      - create transaction(session_fee, -per_head_fee, method=balance)
+      - update member.balance -= per_head_fee
+      - attendance.paid_amount = per_head_fee; paid_flag = true; payment_method=balance
+  - else:
+      - due = per_head_fee - member.balance (if positive)
+      - if member.balance > 0:
+          - transaction(session_fee, -member.balance)
+          - attendance.paid_amount += member.balance
+          - member.balance = 0
+      - mark paid_flag=false; payment_method='mixed' or null
+      - allow on-field collection or later contribution
+- On on-field collection:
+  - transaction(onfield_payment, +collected_amount, method=cash/mobile)
+  - Apply to unpaid attendance of that session first; set paid_flag when paid_amount >= charged_amount
+  - Optionally also mirror as session_fee negative transaction if you want strict double-entry per session
+
+7.3 Monthly Contribution
+- transaction(contribution, +amount)
+- update member.balance += amount
+
+7.4 Team Balance
+- team_balance = SUM(member.balance)
+- If tracking treasury cash box separately, maintain separate ledger and show both metrics.
+
+
+8. API Design (REST)
+Authentication
+- POST /auth/login
+- POST /auth/logout
+- POST /auth/refresh
+
+Members
+- GET /members
+- GET /members/{id}
+- POST /members
+- PUT /members/{id}
+- GET /members/{id}/transactions
+- GET /members/{id}/attendance
+- POST /members/{id}/contributions  {amount, method, reference}
+
+Fields
+- GET /fields
+- POST /fields
+- PUT /fields/{id}
+
+Sessions
+- GET /sessions?status=planned&from=&to=
+- POST /sessions
+- GET /sessions/{id}
+- PUT /sessions/{id}
+- POST /sessions/{id}/finalize  (locks costs, triggers fee calculation)
+- POST /sessions/{id}/attendance/bulk  [{member_id, present}]
+- PUT /sessions/{id}/attendance/{attendance_id}  (update paid status, notes)
+- POST /sessions/{id}/onfield-collection  {member_id or guest, amount, method}
+
+Transactions
+- GET /transactions?member_id=&session_id=&type=&from=&to=
+- POST /transactions/adjustment  {amount, reason}
+- GET /reports/session/{session_id}
+- GET /reports/member/{member_id}?from=&to=
+- GET /reports/team-summary?from=&to=
+- GET /exports/{type}?from=&to=  (csv/pdf)
+
+Admin
+- GET /users
+- POST /users
+- PUT /users/{id}
+- GET /audit?from=&to=&user_id=
+
+Validation and Errors
+- 400 for validation errors with field-level messages
+- 401/403 for auth/permissions
+- 404 not found
+- 409 conflict (duplicate attendance)
+- 422 business rule violation (no present members; cannot finalize)
+- 500 internal
+
+
+9. UI/UX Views
+- Dashboard: Upcoming sessions, quick stats (team balance, unpaid counts)
+- Calendar: Month/week list of planned sessions
+- Session Detail:
+  - Field info, costs, attendees, per-head fee, paid/unpaid status, on-field collection action
+- Attendance Marking: Mobile-first toggles for present/absent
+- Members:
+  - List with search; detail page with balance, transactions, attendance history
+  - Add contribution flow
+- Transactions:
+  - Filterable list with export (CSV)
+- Reports:
+  - Session report, team summary, member statements (PDF/CSV)
+- Sharing:
+  - Read-only links (tokenized) or downloadable PDFs for management
+- Settings:
+  - Roles, users, currency, rounding mode preference
+
+
+10. Security and Compliance
+- HTTPS everywhere
+- Password hashing: Argon2id or bcrypt
+- JWT access and refresh tokens; secure storage; short-lived access tokens
+- RBAC enforced server-side
+- Input sanitization; use parameterized queries/ORM
+- Audit logging for sensitive changes
+- Backups: daily full, 7–30 day retention; tested restore procedure
+- Rate limiting (e.g., 100 req/min per IP for public endpoints)
+- PII minimization and masked exports where appropriate
+
+
+11. Notifications (Optional v1)
+- Session reminders to members (email/SMS)
+- Contribution reminders for low/negative balances
+- Post-session summary to management
+
+12. Reports and Exports
+- Session Financial Report: totals, per-head fee, paid/unpaid list, rounding adjustment
+- Member Statement: opening balance, transactions, closing balance for period
+- Team Summary: total contributions, total session costs, team balance over time
+- CSV/PDF exports
+
+
+13. System Architecture
+- Frontend: React or Vue, responsive UI, component library
+- Backend: Node.js (NestJS/Express) or Django/Rails (choose one stack)
+- Database: PostgreSQL (recommended) or MySQL
+- ORM: Prisma/TypeORM/Sequelize or Django ORM
+- Auth: JWT-based; optional OAuth2 later
+- Deployment: Docker containers; hosting on VPS/Cloud (Render/Fly/Heroku/AWS)
+- Observability: Structured logs (JSON), metrics (Prometheus), error tracking (Sentry)
+- CI/CD: Lint, test, migration, deploy
+- Migrations: Managed via ORM tool
+
+14. Acceptance Criteria (Samples)
+AC-01 Creating a session:
+- Given valid field, date, and costs, when the treasurer saves, then the session appears on calendar and status=planned.
+
+AC-02 Finalizing a session with attendance:
+- Given attendance marked for at least one member present, when treasurer finalizes, then per-head fee is computed, transactions created (session_fee), balances updated, and attendance records show paid or due.
+
+AC-03 Absent members not charged:
+- Given a member marked absent, when session finalizes, then no session_fee transaction is created for that member and their balance remains unchanged.
+
+AC-04 Monthly contribution:
+- Given a contribution recorded, then the member balance increases and a transaction of type 'contribution' is logged.
+
+AC-05 On-field collection for insufficient balance:
+- Given a member with unpaid session fee, when on-field collection is recorded, then an onfield_payment transaction is created, the unpaid attendance is reconciled, and paid_flag becomes true when fully covered.
+
+AC-06 Team balance:
+- Given multiple member balances, then the team balance equals the sum of member balances within 1 cent of rounding policy.
+
+AC-07 Exports:
+- Given a date range, when treasurer exports transactions, then a CSV file is downloaded with all matching records.
+
+
+15. Flow Diagrams (Mermaid)
+
+15.1 Session Lifecycle and Payment Flow
+flowchart TD
+    A[Create Session] --> B[Enter Costs<br/>(Field, Transport, Drinks, Emergency)]
+    B --> C[Schedule Date/Time & Field]
+    C --> D[Mark Attendance Present/Absent]
+    D --> E{Finalize Session?}
+    E -- No --> D
+    E -- Yes --> F[Compute Total Cost and Per-Head Fee]
+    F --> G{Any Present Members?}
+    G -- No --> H[Abort Fees<br/>Notify & Log]
+    G -- Yes --> I[Auto-Deduct from Present Members]
+    I --> J{Sufficient Balance?}
+    J -- Yes --> K[Create session_fee Tx<br/>Update Balance]
+    J -- No --> L[Create Partial/Due<br/>Mark Unpaid]
+    L --> M[On-Field Collection or Later Contribution]
+    M --> N[Reconcile Dues<br/>Mark Paid when covered]
+    K --> O[Handle Rounding Adjustment if needed]
+    N --> O
+    O --> P[Generate Session Report]
+    P --> Q[Session Complete]
+
+15.2 Contribution Flow
+flowchart LR
+    C1[Member Pays Contribution] --> C2[Record contribution Tx]
+    C2 --> C3[Increase Member Balance]
+    C3 --> C4[Reflect in Team Balance and Member Statement]
+
+15.3 Sharing Reports
+flowchart LR
+    S1[Treasurer Generates Report] --> S2[Create Read-Only Link or PDF]
+    S2 --> S3[Share with Management]
+    S3 --> S4[View-Only Access]
+
+
+16. Edge Cases and Handling
+- No attendees present: Do not finalize fees; warn and keep session planned or mark canceled
+- Late attendees toggled after finalize: Require re-finalize with warning (may regenerate transactions)
+- Negative balances: Permit but flag; dues tracked
+- Guest attendees: Allow ad-hoc entries; do not impact member balances unless linked
+- Rounding issues: Use centralized rounding strategy and optional adjustment transaction
+- Duplicate attendance: Enforce unique(member_id, session_id)
+- Time overlap: Allow multiple sessions; it’s informational
+- Currency: Single currency per deployment
+
+
+17. Future Enhancements
+- Payment gateway integration (Stripe/PayPal/Mobile money)
+- Push notifications and richer reminders
+- Multi-team/org support
+- Advanced analytics (attendance trends, cost forecasts)
+- Budgeting and targets per season
+
+
+18. Implementation Roadmap (Phases)
+Phase 1 (MVP)
+- Members, fields, sessions (plan/complete)
+- Attendance marking
+- Fee calculation and auto-deduction
+- Contributions and on-field collections
+- Balances and basic reports
+- Auth and RBAC
+Phase 2
+- Exports (CSV/PDF), read-only share links
+- Audit logs and improved dashboards
+Phase 3
+- Notifications, mobile optimizations
+- Payment integrations
+
+19. Test Scenarios (Sample)
+- Create session, mark 10 present, total_cost=100 => per_head=10; create 10 session_fee tx; balances reduced by 10
+- Member with balance 5: deduct 5, due 5; on-field payment 5 clears due; paid_flag true
+- Absent member not charged despite positive balance
+- Rounding: total_cost=100, present=3 => per_head=33.33; sum=99.99; adjustment +0.01
+- Contribution increases balance and appears in statement
+
+20. Notes for Treasurer
+- Use the calendar to plan sessions
+- Mark attendance before finalizing to avoid mischarges
+- For guests/new members, use on-field collection and optionally add them as members later
+- Share session and monthly reports with management via read-only links or exports
