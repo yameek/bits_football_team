@@ -23,7 +23,9 @@ export class MembersService {
     const member = this.membersRepository.create({
       name: createMemberDto.name,
       contact_number: createMemberDto.contactNumber,
+      pin: createMemberDto.pin,
       balance: 0.00,
+      consecutive_absences: 0,
       status: createMemberDto.status || 'active',
     });
     return await this.membersRepository.save(member);
@@ -39,6 +41,14 @@ export class MembersService {
     const member = await this.membersRepository.findOne({ where: { id } });
     if (!member) {
       throw new NotFoundException(`Member with ID ${id} not found`);
+    }
+    return member;
+  }
+
+  async findByPin(pin: string): Promise<Member> {
+    const member = await this.membersRepository.findOne({ where: { pin } });
+    if (!member) {
+      throw new NotFoundException(`Member with PIN "${pin}" not found`);
     }
     return member;
   }

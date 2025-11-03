@@ -17,11 +17,17 @@ export class Member {
   @Column({ type: 'varchar', length: 100 })
   name: string;
 
+  @Column({ type: 'varchar', length: 10, unique: true, nullable: true })
+  pin: string;
+
   @Column({ type: 'varchar', length: 20, nullable: true })
   contact_number: string;
 
   @Column({ type: 'decimal', precision: 12, scale: 2, default: 0 })
   balance: number;
+
+  @Column({ type: 'integer', default: 0 })
+  consecutive_absences: number;
 
   @Column({ type: 'varchar', length: 20, default: 'active' })
   status: string;

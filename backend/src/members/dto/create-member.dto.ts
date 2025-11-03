@@ -23,6 +23,16 @@ export class CreateMemberDto {
   contactNumber?: string;
 
   @ApiPropertyOptional({
+    description: 'Member PIN/Office ID for identification',
+    example: 'EMP001',
+    maxLength: 10,
+  })
+  @IsOptional()
+  @IsString()
+  @MaxLength(10)
+  pin?: string;
+
+  @ApiPropertyOptional({
     description: 'Member status',
     enum: ['active', 'inactive', 'suspended'],
     default: 'active',

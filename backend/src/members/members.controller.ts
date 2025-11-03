@@ -146,4 +146,28 @@ export class MembersController {
   findAttendance(@Param('id', ParseIntPipe) id: number) {
     return this.membersService.findAttendance(id);
   }
+
+  @Get('by-pin/:pin')
+  @ApiOperation({ summary: 'Find member by PIN/Office ID' })
+  @ApiParam({ name: 'pin', description: 'Member PIN/Office ID', example: 'EMP001' })
+  @ApiResponse({
+    status: 200,
+    description: 'Member found by PIN',
+  })
+  @ApiResponse({ status: 404, description: 'Member with this PIN not found' })
+  findByPin(@Param('pin') pin: string) {
+    return this.membersService.findByPin(pin);
+  }
+
+  @Post('verify-pin')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Verify if a PIN exists and return member info' })
+  @ApiResponse({
+    status: 200,
+    description: 'PIN verified, member found',
+  })
+  @ApiResponse({ status: 404, description: 'PIN not found' })
+  verifyPin(@Body() body: { pin: string }) {
+    return this.membersService.findByPin(body.pin);
+  }
 }

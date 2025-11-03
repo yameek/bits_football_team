@@ -17,6 +17,8 @@ export enum TransactionType {
   ONFIELD_PAYMENT = 'onfield_payment',
   REFUND = 'refund',
   ADJUSTMENT = 'adjustment',
+  BULK_PAYMENT = 'bulk_payment',
+  FINE = 'fine',
 }
 
 export enum TransactionMethod {
@@ -63,6 +65,12 @@ export class Transaction {
 
   @Column({ type: 'varchar', length: 100, nullable: true })
   reference: string;
+
+  @Column({ type: 'varchar', length: 50, nullable: true })
+  bulk_payment_group: string;
+
+  @Column({ type: 'varchar', length: 50, nullable: true })
+  payment_provider: string;
 
   @Column({ type: 'text', nullable: true })
   notes: string;
