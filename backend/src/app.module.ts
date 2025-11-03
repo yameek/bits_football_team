@@ -10,6 +10,8 @@ import { SessionsModule } from './sessions/sessions.module';
 import { TransactionsModule } from './transactions/transactions.module';
 import { ReportsModule } from './reports/reports.module';
 import { SettingsModule } from './settings/settings.module';
+import { AlertsModule } from './alerts/alerts.module';
+import { GuestsModule } from './guests/guests.module';
 
 @Module({
   imports: [
@@ -21,6 +23,8 @@ import { SettingsModule } from './settings/settings.module';
     TransactionsModule,
     ReportsModule,
     SettingsModule,
+    AlertsModule,
+    GuestsModule,
   ],
   controllers: [AppController],
   providers: [AppService],

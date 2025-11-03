@@ -7,6 +7,7 @@ import { Attendance } from '../entities/attendance.entity';
 import { Field } from '../entities/field.entity';
 import { Member } from '../entities/member.entity';
 import { Transaction } from '../entities/transaction.entity';
+import { GuestsModule } from '../guests/guests.module';
 
 @Module({
   imports: [
@@ -17,6 +18,7 @@ import { Transaction } from '../entities/transaction.entity';
       Member,
       Transaction,
     ]),
+    GuestsModule,
   ],
   controllers: [SessionsController],
   providers: [SessionsService],

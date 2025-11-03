@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException, BadRequestException, ConflictException } from '@nestjs/common';
+import { Injectable, NotFoundException, BadRequestException, ConflictException, Inject, forwardRef } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, Between, In } from 'typeorm';
 import { Session, SessionType, SessionStatus } from '../entities/session.entity';
@@ -10,6 +10,7 @@ import { CreateSessionDto } from './dto/create-session.dto';
 import { UpdateSessionDto } from './dto/update-session.dto';
 import { BulkAttendanceDto } from './dto/mark-attendance.dto';
 import { OnFieldCollectionDto } from './dto/onfield-collection.dto';
+import { GuestsService } from '../guests/guests.service';
 
 @Injectable()
 export class SessionsService {
@@ -24,6 +25,8 @@ export class SessionsService {
     private membersRepository: Repository<Member>,
     @InjectRepository(Transaction)
     private transactionsRepository: Repository<Transaction>,
+    @Inject(forwardRef(() => GuestsService))
+    private guestsService: GuestsService,
   ) {}
 
   async create(createSessionDto: CreateSessionDto): Promise<Session> {
@@ -275,6 +278,8 @@ export class SessionsService {
   async finalizeSession(id: number): Promise<{
     session: Session;
     chargedMembers: number;
+    guestCount: number;
+    totalPeople: number;
     perHeadFee: number;
     totalCollected: number;
   }> {
@@ -308,9 +313,14 @@ export class SessionsService {
       throw new BadRequestException('Cannot finalize session with no attendees');
     }
 
-    // BR-01: Calculate per-head fee
+    // Get all guests for this session
+    const guests = await this.guestsService.findBySession(id);
+    const guestCount = guests.length;
+
+    // BR-01: Calculate per-head fee (including guests)
     const totalCost = await this.getTotalCost(id);
-    const rawPerHeadFee = totalCost / attendees.length;
+    const totalPeople = attendees.length + guestCount;
+    const rawPerHeadFee = totalCost / totalPeople;
 
     // BR-02: Round to nearest 0.25
     const perHeadFee = Math.round(rawPerHeadFee * 4) / 4;
@@ -352,6 +362,8 @@ export class SessionsService {
     return {
       session,
       chargedMembers: attendees.length,
+      guestCount,
+      totalPeople: attendees.length + guestCount,
       perHeadFee,
       totalCollected,
     };
