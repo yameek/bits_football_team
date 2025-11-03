@@ -11,6 +11,9 @@ import { UpdateSessionDto } from './dto/update-session.dto';
 import { BulkAttendanceDto } from './dto/mark-attendance.dto';
 import { OnFieldCollectionDto } from './dto/onfield-collection.dto';
 import { GuestsService } from '../guests/guests.service';
+import { SettingsService } from '../settings/settings.service';
+import { AlertsService } from '../alerts/alerts.service';
+import { AlertType } from '../alerts/dto/alert.dto';
 
 @Injectable()
 export class SessionsService {
@@ -27,6 +30,8 @@ export class SessionsService {
     private transactionsRepository: Repository<Transaction>,
     @Inject(forwardRef(() => GuestsService))
     private guestsService: GuestsService,
+    private settingsService: SettingsService,
+    private alertsService: AlertsService,
   ) {}
 
   async create(createSessionDto: CreateSessionDto): Promise<Session> {
@@ -339,6 +344,9 @@ export class SessionsService {
       member.balance = Number(member.balance) - perHeadFee;
       await this.membersRepository.save(member);
 
+      // Check if member balance is below threshold
+      await this.checkMemberBalanceThreshold(member);
+
       // Create deduction transaction
       const transaction = this.transactionsRepository.create({
         member,
@@ -359,6 +367,9 @@ export class SessionsService {
     session.status = SessionStatus.COMPLETED;
     await this.sessionsRepository.save(session);
 
+    // Check treasury balance threshold
+    await this.checkTreasuryBalanceThreshold();
+
     return {
       session,
       chargedMembers: attendees.length,
@@ -367,5 +378,56 @@ export class SessionsService {
       perHeadFee,
       totalCollected,
     };
+  }
+
+  /**
+   * Check if member balance is below threshold and create alert if needed
+   */
+  private async checkMemberBalanceThreshold(member: Member): Promise<void> {
+    const threshold = await this.settingsService.getValue('member_min_threshold');
+    const minThreshold = threshold ? parseFloat(threshold) : 250;
+
+    if (Number(member.balance) < minThreshold) {
+      // Check if alert already exists for this member
+      const existingAlerts = await this.alertsService.findByMember(member.id);
+      const hasUnresolvedAlert = existingAlerts.some(
+        alert => alert.alert_type === AlertType.MEMBER_LOW_BALANCE && !alert.is_resolved
+      );
+
+      if (!hasUnresolvedAlert) {
+        await this.alertsService.create({
+          alert_type: AlertType.MEMBER_LOW_BALANCE,
+          message: `Member ${member.name} balance (${member.balance}) is below minimum threshold (${minThreshold})`,
+          member_id: member.id,
+        });
+      }
+    }
+  }
+
+  /**
+   * Check treasury balance and create alert if below threshold
+   */
+  private async checkTreasuryBalanceThreshold(): Promise<void> {
+    const threshold = await this.settingsService.getValue('treasury_min_threshold');
+    const minThreshold = threshold ? parseFloat(threshold) : 5000;
+
+    // Get team balance
+    const members = await this.membersRepository.find();
+    const treasuryBalance = members.reduce((sum, m) => sum + Number(m.balance), 0);
+
+    if (treasuryBalance < minThreshold) {
+      // Check if alert already exists
+      const existingAlerts = await this.alertsService.findAll();
+      const hasUnresolvedAlert = existingAlerts.some(
+        alert => alert.alert_type === AlertType.TREASURY_LOW && !alert.is_resolved
+      );
+
+      if (!hasUnresolvedAlert) {
+        await this.alertsService.create({
+          alert_type: AlertType.TREASURY_LOW,
+          message: `Treasury balance (${treasuryBalance.toFixed(2)}) is below minimum threshold (${minThreshold})`,
+        });
+      }
+    }
   }
 }

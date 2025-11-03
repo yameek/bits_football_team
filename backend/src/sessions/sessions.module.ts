@@ -8,6 +8,8 @@ import { Field } from '../entities/field.entity';
 import { Member } from '../entities/member.entity';
 import { Transaction } from '../entities/transaction.entity';
 import { GuestsModule } from '../guests/guests.module';
+import { SettingsModule } from '../settings/settings.module';
+import { AlertsModule } from '../alerts/alerts.module';
 
 @Module({
   imports: [
@@ -19,6 +21,8 @@ import { GuestsModule } from '../guests/guests.module';
       Transaction,
     ]),
     GuestsModule,
+    SettingsModule,
+    AlertsModule,
   ],
   controllers: [SessionsController],
   providers: [SessionsService],
