@@ -1,17 +1,8 @@
 import { Controller, Get, Put, Post, Delete, Body, Param, HttpCode, HttpStatus } from '@nestjs/common';
-import { ApiTags, ApiOperation, ApiResponse, ApiParam } from '@nestjs/swagger';
+import { ApiTags, ApiOperation, ApiResponse, ApiParam, ApiBody } from '@nestjs/swagger';
 import { SettingsService } from './settings.service';
 import { Setting } from '../entities/setting.entity';
-
-class UpdateSettingDto {
-  value: string;
-}
-
-class CreateSettingDto {
-  key: string;
-  value: string;
-  description?: string;
-}
+import { CreateSettingDto, UpdateSettingDto } from './dto/setting.dto';
 
 @ApiTags('Settings')
 @Controller('settings')
@@ -47,6 +38,19 @@ export class SettingsController {
   @Put(':key')
   @ApiOperation({ summary: 'Update a setting value' })
   @ApiParam({ name: 'key', description: 'Setting key', example: 'treasury_min_threshold' })
+  @ApiBody({
+    type: UpdateSettingDto,
+    examples: {
+      updateThreshold: {
+        summary: 'Update treasury threshold',
+        value: { value: '6000' }
+      },
+      updateFinePercentage: {
+        summary: 'Update fine percentage',
+        value: { value: '25' }
+      }
+    }
+  })
   @ApiResponse({ status: 200, description: 'Setting updated successfully' })
   @ApiResponse({ status: 404, description: 'Setting not found' })
   async update(
@@ -58,6 +62,27 @@ export class SettingsController {
 
   @Post()
   @ApiOperation({ summary: 'Create a new setting' })
+  @ApiBody({
+    type: CreateSettingDto,
+    examples: {
+      maxGuests: {
+        summary: 'Maximum guests per session',
+        value: {
+          key: 'max_guests_per_session',
+          value: '5',
+          description: 'Maximum number of guests allowed per session'
+        }
+      },
+      sessionReminder: {
+        summary: 'Session reminder days',
+        value: {
+          key: 'session_reminder_days',
+          value: '2',
+          description: 'Days before session to send reminder'
+        }
+      }
+    }
+  })
   @ApiResponse({ status: 201, description: 'Setting created successfully' })
   @ApiResponse({ status: 400, description: 'Setting already exists' })
   async create(@Body() createSettingDto: CreateSettingDto): Promise<Setting> {

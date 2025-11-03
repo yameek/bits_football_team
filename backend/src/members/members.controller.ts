@@ -22,6 +22,7 @@ import { MembersService } from './members.service';
 import { CreateMemberDto } from './dto/create-member.dto';
 import { UpdateMemberDto } from './dto/update-member.dto';
 import { AddContributionDto } from './dto/add-contribution.dto';
+import { VerifyPinDto } from './dto/verify-pin.dto';
 
 @ApiTags('members')
 @Controller('members')
@@ -167,7 +168,7 @@ export class MembersController {
     description: 'PIN verified, member found',
   })
   @ApiResponse({ status: 404, description: 'PIN not found' })
-  verifyPin(@Body() body: { pin: string }) {
-    return this.membersService.findByPin(body.pin);
+  verifyPin(@Body() verifyPinDto: VerifyPinDto) {
+    return this.membersService.findByPin(verifyPinDto.pin);
   }
 }
