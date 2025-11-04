@@ -30,10 +30,24 @@ export class MembersController {
   constructor(private readonly membersService: MembersService) {}
 
   @Post()
-  @ApiOperation({ summary: 'Create a new member' })
+  @ApiOperation({ 
+    summary: 'Create a new member',
+    description: 'Creates a new member with an automatic surcharge applied. The member starts with a negative balance equal to the surcharge amount (default: 500 BDT).'
+  })
   @ApiResponse({
     status: 201,
-    description: 'Member successfully created',
+    description: 'Member successfully created with surcharge applied',
+    example: {
+      id: 10,
+      name: 'New Player',
+      contact_number: '+8801712345678',
+      pin: '1234',
+      balance: -500.00,
+      consecutive_absences: 0,
+      status: 'active',
+      created_at: '2025-11-04T12:00:00Z',
+      updated_at: '2025-11-04T12:00:00Z'
+    }
   })
   @ApiResponse({ status: 400, description: 'Bad request' })
   create(@Body() createMemberDto: CreateMemberDto) {

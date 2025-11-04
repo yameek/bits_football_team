@@ -19,6 +19,7 @@ export enum TransactionType {
   ADJUSTMENT = 'adjustment',
   BULK_PAYMENT = 'bulk_payment',
   FINE = 'fine',
+  SURCHARGE = 'surcharge',
 }
 
 export enum TransactionMethod {

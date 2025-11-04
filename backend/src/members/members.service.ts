@@ -7,6 +7,7 @@ import { Attendance } from '../entities/attendance.entity';
 import { CreateMemberDto } from './dto/create-member.dto';
 import { UpdateMemberDto } from './dto/update-member.dto';
 import { AddContributionDto } from './dto/add-contribution.dto';
+import { SettingsService } from '../settings/settings.service';
 
 @Injectable()
 export class MembersService {
@@ -17,18 +18,37 @@ export class MembersService {
     private transactionsRepository: Repository<Transaction>,
     @InjectRepository(Attendance)
     private attendanceRepository: Repository<Attendance>,
+    private settingsService: SettingsService,
   ) {}
 
   async create(createMemberDto: CreateMemberDto): Promise<Member> {
+    // Get surcharge amount from settings
+    const surchargeAmount = await this.settingsService.getNumberValue('surcharge_amount');
+
     const member = this.membersRepository.create({
       name: createMemberDto.name,
       contact_number: createMemberDto.contactNumber,
       pin: createMemberDto.pin,
-      balance: 0.00,
+      balance: -surchargeAmount, // Start with negative balance (surcharge debt)
       consecutive_absences: 0,
       status: createMemberDto.status || 'active',
     });
-    return await this.membersRepository.save(member);
+    
+    const savedMember = await this.membersRepository.save(member);
+
+    // Create surcharge transaction
+    const surchargeTransaction = this.transactionsRepository.create({
+      member_id: savedMember.id,
+      transaction_type: TransactionType.SURCHARGE,
+      amount: -surchargeAmount,
+      currency: 'BDT',
+      notes: 'New member surcharge',
+      timestamp: new Date(),
+    });
+    
+    await this.transactionsRepository.save(surchargeTransaction);
+
+    return savedMember;
   }
 
   async findAll(): Promise<Member[]> {
