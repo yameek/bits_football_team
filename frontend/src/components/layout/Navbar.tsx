@@ -2,12 +2,23 @@
 
 import { Menu, Bell } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
+import { useQuery } from '@tanstack/react-query';
+import { alertApi } from '@/lib/api/alerts';
+import Link from 'next/link';
 
 interface NavbarProps {
   onMenuClick?: () => void;
 }
 
 export function Navbar({ onMenuClick }: NavbarProps) {
+  const { data: alerts } = useQuery({
+    queryKey: ['alerts', 'unresolved'],
+    queryFn: alertApi.getUnresolved,
+    refetchInterval: 30000,
+  });
+
+  const alertCount = alerts?.length || 0;
+
   return (
     <div className="sticky top-0 z-10 flex-shrink-0 flex h-16 bg-white shadow">
       <button
@@ -25,16 +36,20 @@ export function Navbar({ onMenuClick }: NavbarProps) {
           </h2>
         </div>
         <div className="ml-4 flex items-center md:ml-6">
-          <button
-            type="button"
-            className="relative p-1 rounded-full text-gray-400 hover:text-gray-500 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
-          >
-            <span className="sr-only">View notifications</span>
-            <Bell className="h-6 w-6" />
-            <Badge className="absolute -top-1 -right-1 h-5 w-5 rounded-full bg-red-500 text-white text-xs flex items-center justify-center">
-              3
-            </Badge>
-          </button>
+          <Link href="/alerts">
+            <button
+              type="button"
+              className="relative p-1 rounded-full text-gray-400 hover:text-gray-500 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
+            >
+              <span className="sr-only">View notifications</span>
+              <Bell className="h-6 w-6" />
+              {alertCount > 0 && (
+                <Badge className="absolute -top-1 -right-1 h-5 w-5 rounded-full bg-red-500 text-white text-xs flex items-center justify-center">
+                  {alertCount}
+                </Badge>
+              )}
+            </button>
+          </Link>
         </div>
       </div>
     </div>
