@@ -26,8 +26,8 @@ export default function UpdateSessionCostsPage() {
   });
 
   const updateCosts = useMutation({
-    mutationFn: async (data: any) => {
-      const { data: result } = await sessionApi.update(sessionId, data);
+    mutationFn: async (updateData: any) => {
+      const result = await sessionApi.update(sessionId, updateData);
       return result;
     },
     onSuccess: () => {

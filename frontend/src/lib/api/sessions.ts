@@ -37,7 +37,7 @@ export const sessionApi = {
   },
 
   calculateCost: async (id: number): Promise<any> => {
-    const { data } = await api.get(`/sessions/${id}/calculate-cost`);
+    const { data } = await api.get(`/sessions/${id}/total-cost`);
     return data;
   },
 
