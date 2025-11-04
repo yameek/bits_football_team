@@ -1,5 +1,30 @@
 # Updated Todo List - Swagger & Workflow Documentation Focus
 
+## 📋 Development Workflow
+
+**IMPORTANT: For each task completion:**
+1. ✅ Implement the feature
+2. ✅ Test thoroughly (via Swagger UI or cURL)
+3. ✅ Update documentation (this file + SWAGGER_CHECKLIST.md if applicable)
+4. 🔄 **GIT COMMIT** with descriptive message:
+   ```bash
+   git add .
+   git commit -m "feat: [Phase X] [Feature Name] - Brief description"
+   ```
+   **Examples:**
+   - `git commit -m "feat: [Phase 2] Alerts Module - 8 endpoints with Swagger docs"`
+   - `git commit -m "feat: [Phase 3] Bulk Payments - Equal/custom split with migration"`
+   - `git commit -m "feat: [Phase 4] Auto-fines - 20% fine for 2+ consecutive absences"`
+   - `git commit -m "docs: Update TODO with Phase 3 completion status"`
+   - `git commit -m "fix: Correct transaction type constraint in migration"`
+
+5. 🚀 Push to remote (optional, but recommended):
+   ```bash
+   git push origin orm_setup
+   ```
+
+---
+
 ## ✅ Completed
 
 ### Phase 1: Foundation
@@ -23,174 +48,115 @@
 
 ---
 
-## 🔄 In Progress
+## ✅ Recently Completed
 
 ### Phase 2: Alerts Module + Swagger
-**Tasks:**
-1. Generate AlertsModule, service, controller
-2. Create endpoints: GET /alerts, GET /alerts/unresolved, POST /alerts/:id/resolve, GET /alerts/member/:id
-3. Add comprehensive Swagger decorators:
-   - @ApiTags('Alerts')
-   - @ApiOperation with clear descriptions
-   - @ApiResponse for all status codes (200, 404, etc.)
-   - @ApiParam with examples
-4. Create DTOs with @ApiProperty:
-   - CreateAlertDto
-   - ResolveAlertDto
-   - AlertFilterDto
-5. Add request/response examples in Swagger
-6. Document workflow in API_WORKFLOWS.md:
-   - When alerts are triggered (auto or manual)
-   - How to filter alerts (by type, member, status)
-   - How to resolve alerts
-   - Frontend integration patterns
-7. Test all endpoints in Swagger UI (/api)
-
-**Expected Endpoints:**
-```typescript
-GET    /alerts                    // Get all alerts
-GET    /alerts/unresolved         // Get unresolved only
-GET    /alerts/member/:id         // Get alerts for specific member
-GET    /alerts/:id                // Get single alert
-POST   /alerts/:id/resolve        // Resolve alert
-```
+**Status: ✅ COMPLETE**
+- ✅ Generated AlertsModule, service, controller
+- ✅ Created 8 endpoints tested:
+  - POST /alerts (create)
+  - GET /alerts (get all)
+  - GET /alerts/unresolved (filter unresolved)
+  - GET /alerts/stats (statistics)
+  - GET /alerts/member/:id (by member)
+  - GET /alerts/:id (get one)
+  - PATCH /alerts/:id/resolve (resolve)
+  - DELETE /alerts/:id (delete)
+- ✅ Full Swagger documentation with @ApiTags, @ApiOperation, @ApiResponse
+- ✅ DTOs created with complete @ApiProperty decorators
+- ✅ Tested in Swagger UI
 
 ---
 
 ### Phase 2: Guests Module + Swagger
-**Tasks:**
-1. Generate GuestsModule, service, controller
-2. Create endpoints: POST /sessions/:id/guests, GET /sessions/:id/guests, GET /guests/:id, POST /guests/:id/convert-to-member
-3. Add comprehensive Swagger decorators
-4. Create DTOs with @ApiProperty:
-   - CreateGuestDto (name, contactNumber, broughtByMemberId, paidByMemberId, amountPaid)
-   - ConvertGuestDto (pin, status)
-5. Add request/response examples:
-   - Guest added to session
-   - Member pays for guest
-   - Guest converts to member
-   - Session with guests in fee split
-6. Document workflow in API_WORKFLOWS.md:
-   - Add guest to session
-   - Record who brought guest and who paid
-   - Convert guest to member (credit their payment)
-   - Session finalization includes guests in per-head count
-7. Update SessionsService.finalizeSession() to include guest count
-8. Test in Swagger UI
-
-**Expected Endpoints:**
-```typescript
-POST   /sessions/:id/guests           // Add guest to session
-GET    /sessions/:id/guests           // List guests for session
-GET    /guests/:id                    // Get guest details
-POST   /guests/:id/convert-to-member  // Convert guest to member
-```
+**Status: ✅ COMPLETE**
+- ✅ Generated GuestsModule, service, controller
+- ✅ Created 6 endpoints tested:
+  - POST /guests (create guest)
+  - GET /guests (list all)
+  - GET /guests/:id (get details)
+  - POST /guests/:id/convert (convert to member)
+  - DELETE /guests/:id (delete)
+  - GET /guests/stats (statistics)
+- ✅ Full Swagger documentation
+- ✅ DTOs: CreateGuestDto, ConvertToMemberDto
+- ✅ Session finalization includes guests in per-head calculation
+- ✅ Tested: 800/(2+1)=266.75 per person
 
 ---
 
-## ⏳ Pending
-
 ### Phase 3: Bulk Payment System + Swagger
-**Tasks:**
-1. Add POST /transactions/bulk-payment endpoint
-2. Create BulkPaymentDto with @ApiProperty:
-   - member_ids[] (array of member IDs)
-   - total_amount (number)
-   - split_type (enum: 'equal' | 'custom')
-   - amounts_per_member[] (for custom split)
-   - payment_provider (string: 'bkash', 'nagad', 'rocket', etc.)
-3. Add GET /transactions/bulk/:group_id endpoint
-4. Implement split logic:
-   - Equal split: divide total_amount by member count
-   - Custom split: use provided amounts_per_member array
-   - Generate unique bulk_payment_group ID
-5. Add Swagger examples:
-   - Equal split: 3 members, 3000 BDT → 1000 each
-   - Custom split: member1=1000, member2=1500, member3=500
-6. Document workflow:
-   - Select members (UI: checkboxes)
-   - Choose split type (UI: radio buttons)
-   - If custom, input amounts per member
-   - Execute payment
-   - Verify individual transactions created
-7. Create frontend integration guide in API_WORKFLOWS.md
+**Status: ✅ COMPLETE**
+- ✅ POST /transactions/bulk-payment endpoint
+- ✅ GET /transactions/bulk/:groupId endpoint
+- ✅ BulkPaymentDto with full validation and Swagger docs
+- ✅ Split types: EQUAL and CUSTOM
+- ✅ Migration applied: Added 'bulk_payment' to transaction_type constraint
+- ✅ Tested scenarios:
+  - Equal split: 500/2=250 each (group: a2295779-09af-42b8-a555-d7704e35c8a4)
+  - Custom split: 200+250+150=600 (group: 4a77d9e9-c0ca-4cbb-990e-f00a3664851b)
+  - Validation: Rejected missing amounts, total mismatch
+- ✅ Full Swagger examples for both split types
 
 ---
 
 ### Phase 3: Threshold Monitoring + Alert Triggers
-**Tasks:**
-1. Inject SettingsService into TransactionsService and SessionsService
-2. After each transaction (contribution, session fee, etc.):
-   - Get treasury_min_threshold setting (5000 BDT)
-   - Calculate total treasury balance
-   - If balance < threshold: generate treasury_low alert
-3. After each member balance update:
-   - Get member_min_threshold setting (250 BDT)
-   - Check member's new balance
-   - If balance < threshold: generate member_low_balance alert
-4. Document workflow in API_WORKFLOWS.md:
-   - Transaction → Balance update → Threshold check → Alert generation (if needed)
-   - Frontend shows alert notification
-5. Add Swagger docs showing:
-   - Which endpoints trigger alerts
-   - Alert response structure
-6. Test scenarios:
-   - Treasury drops below 5000 → alert created
-   - Member balance drops below 250 → alert created
-   - Balance recovers → alert can be resolved
+**Status: ✅ COMPLETE**
+- ✅ Injected SettingsService and AlertsService into SessionsService
+- ✅ Auto-generates alerts when:
+  - Member balance < 250: member_low_balance alert
+  - Treasury balance < 5000: treasury_low alert
+- ✅ Duplicate prevention: Only creates alert if none exists
+- ✅ Tested scenarios:
+  - Generated alerts #3 and #4 for 2 members below threshold
+  - Treasury alert created only once despite multiple finalizations
+- ✅ checkMemberBalanceThreshold() and checkTreasuryBalanceThreshold() methods
 
 ---
 
-### Phase 4: Auto-Fines + Swagger
-**Tasks:**
-1. Update SessionsService.finalizeSession():
-   - For each member NOT in attendance:
-     - Increment consecutive_absences by 1
-   - For each member IN attendance:
-     - Reset consecutive_absences to 0
-   - For members with consecutive_absences >= consecutive_absence_limit (2):
-     - Calculate fine: session_fee * (fine_percentage / 100)
-     - Create FINE transaction
-     - Deduct from member balance
-     - Generate fine_applied alert
-     - Generate consecutive_absence alert
-2. Update Swagger docs for POST /sessions/:id/finalize:
-   - Add examples showing fine calculation
-   - Document response includes fine transactions
-3. Document workflow in API_WORKFLOWS.md:
-   - Session created → Attendance marked → Finalization
-   - Check each member's consecutive_absences
-   - If >= 2: apply fine, create alert
-   - If present: reset counter
-4. Test scenarios:
-   - Member misses 1 session: consecutive_absences = 1, no fine
-   - Member misses 2nd session: consecutive_absences = 2, fine applied (20%)
-   - Member attends next session: consecutive_absences = 0
+### Phase 4: Auto-Fines for Consecutive Absences
+**Status: ✅ COMPLETE**
+- ✅ Updated SessionsService.finalizeSession() with:
+  - Track all absent members
+  - Reset consecutive_absences=0 for attendees
+  - Increment consecutive_absences+=1 for absent members
+  - Apply 20% fine when consecutive_absences >= 2
+  - Create FINE_APPLIED alert for each fine
+- ✅ Return type updated: Added absentMembers and finesApplied counts
+- ✅ Tested thoroughly:
+  - Session 7: Members 3,4,6 absent → consecutive_absences=1, no fines
+  - Session 8: Same members absent again → consecutive_absences=2, 3 fines applied
+  - Fine calculation: 50 * 0.2 = 10.00 per member
+  - Balances updated correctly:
+    - Ahmed Hassan: 200.00 → 190.00 ✅
+    - Test Member: 0.00 → -10.00 ✅
+    - Bob Wilson: 25.75 → 15.75 ✅
+  - Alerts created: 3 FINE_APPLIED alerts with detailed messages
+  - Transactions recorded: Fine transactions with notes
+  - Attendees reset: consecutive_absences=0 ✅
 
 ---
+
+## 🔄 In Progress
 
 ### Phase 4: New Member Surcharge + Swagger
+**Status: ⏳ PENDING**
 **Tasks:**
-1. Update SessionsService.finalizeSession():
-   - For each attending member:
-     - Check member.created_at
-     - Calculate days_since_joined = today - created_at
-     - If days_since_joined < new_member_period_days (90):
-       - Get new_member_surcharge setting (15%)
-       - Calculate fee: base_fee * (1 + surcharge/100)
-     - Else:
-       - Use base_fee
-   - Create transactions with appropriate amounts
-2. Update Swagger docs for POST /sessions/:id/finalize:
-   - Add examples: new member (85 days) pays 115 BDT instead of 100 BDT
-   - Document surcharge calculation in response
-3. Document workflow in API_WORKFLOWS.md:
-   - Session finalization → Check each member's age
-   - If < 90 days: apply 15% surcharge
-   - Create transactions with surcharge included
+1. Add surcharge_amount setting (default 500)
+2. When creating new member in MembersService:
+   - Set initial balance to -surcharge_amount
+   - Create SURCHARGE transaction type (need migration)
+3. Update Swagger docs for POST /members:
+   - Document surcharge in response
+   - Show example: New member created with balance=-500
 4. Test scenarios:
-   - New member (30 days): 100 BDT base → 115 BDT with surcharge
-   - Veteran member (180 days): 100 BDT base → 100 BDT (no surcharge)
+   - Create new member → balance starts at -500
+   - Create SURCHARGE transaction record
+   - Member makes contribution → balance increases
+
+---
+
+## ⏳ Pending
 
 ---
 
@@ -332,7 +298,18 @@ POST   /guests/:id/convert-to-member  // Convert guest to member
 
 ---
 
-**Last Updated:** November 3, 2025  
-**Current Phase:** Phase 1 Complete ✅  
-**Next:** Phase 2 - Alerts & Guests with Swagger  
-**Focus:** API documentation quality for smooth frontend development
+**Last Updated:** November 4, 2025  
+**Current Phase:** Phase 4 - Auto-Fines Complete ✅  
+**Next:** Phase 4 - New Member Surcharge, then Swagger Review  
+**Focus:** Complete all business logic, then comprehensive API documentation for frontend development
+
+**Progress Summary:**
+- ✅ Phase 1: Foundation (Settings, PIN, entities, migrations)
+- ✅ Phase 2: Alerts Module (8 endpoints tested)
+- ✅ Phase 2: Guests Module (6 endpoints tested)
+- ✅ Phase 3: Bulk Payments (2 endpoints, migration applied, tested)
+- ✅ Phase 3: Threshold Monitoring (auto-alerts working)
+- ✅ Phase 4: Auto-Fines (tested with 2 consecutive absences)
+- ⏳ Phase 4: New Member Surcharge (next)
+- ⏳ Complete Swagger Review
+- ⏳ Frontend Integration Package

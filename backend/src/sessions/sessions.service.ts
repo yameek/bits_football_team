@@ -283,6 +283,8 @@ export class SessionsService {
   async finalizeSession(id: number): Promise<{
     session: Session;
     chargedMembers: number;
+    absentMembers: number;
+    finesApplied: number;
     guestCount: number;
     totalPeople: number;
     perHeadFee: number;
@@ -318,6 +320,13 @@ export class SessionsService {
       throw new BadRequestException('Cannot finalize session with no attendees');
     }
 
+    // Track consecutive absences and apply fines
+    const allMembers = await this.membersRepository.find();
+    const attendeeIds = attendees.map(a => a.member.id);
+    const absentMembers = allMembers.filter(m => !attendeeIds.includes(m.id));
+    
+    let finesApplied = 0;
+
     // Get all guests for this session
     const guests = await this.guestsService.findBySession(id);
     const guestCount = guests.length;
@@ -335,6 +344,9 @@ export class SessionsService {
     // BR-03: Charge only attendees
     for (const attendance of attendees) {
       const member = attendance.member;
+      
+      // Reset consecutive absences for attendees
+      member.consecutive_absences = 0;
       
       // Update attendance with charged amount
       attendance.charged_amount = perHeadFee;
@@ -363,6 +375,43 @@ export class SessionsService {
       totalCollected += perHeadFee;
     }
 
+    // Process absent members - increment consecutive absences and apply fines
+    for (const absentMember of absentMembers) {
+      absentMember.consecutive_absences += 1;
+      
+      // Apply 20% fine if absent for 2+ consecutive sessions
+      if (absentMember.consecutive_absences >= 2) {
+        const fineAmount = perHeadFee * 0.2;
+        
+        // Deduct fine from member balance
+        absentMember.balance = Number(absentMember.balance) - fineAmount;
+        
+        // Create fine transaction
+        const fineTransaction = this.transactionsRepository.create({
+          member: absentMember,
+          session,
+          transaction_type: TransactionType.SESSION_FEE,
+          amount: -fineAmount,
+          currency: 'USD',
+          method: TransactionMethod.BANK,
+          timestamp: new Date(),
+          notes: `Absence fine (${absentMember.consecutive_absences} consecutive absences) - ${session.name || 'Unnamed session'}`,
+        });
+        await this.transactionsRepository.save(fineTransaction);
+        
+        // Create alert for fine applied
+        await this.alertsService.create({
+          alert_type: AlertType.FINE_APPLIED,
+          message: `Fine of ${fineAmount.toFixed(2)} applied to ${absentMember.name} for ${absentMember.consecutive_absences} consecutive absences`,
+          member_id: absentMember.id,
+        });
+        
+        finesApplied++;
+      }
+      
+      await this.membersRepository.save(absentMember);
+    }
+
     // Update session status to completed
     session.status = SessionStatus.COMPLETED;
     await this.sessionsRepository.save(session);
@@ -373,6 +422,8 @@ export class SessionsService {
     return {
       session,
       chargedMembers: attendees.length,
+      absentMembers: absentMembers.length,
+      finesApplied,
       guestCount,
       totalPeople: attendees.length + guestCount,
       perHeadFee,
