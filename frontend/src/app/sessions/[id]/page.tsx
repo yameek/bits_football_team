@@ -47,6 +47,12 @@ export default function SessionDetailPage() {
           <div className="flex space-x-2">
             {session.status === 'planned' && (
               <>
+                <Link href={`/sessions/${sessionId}/update-costs`}>
+                  <Button variant="outline">
+                    <DollarSign className="h-4 w-4 mr-2" />
+                    Update Costs
+                  </Button>
+                </Link>
                 <Link href={`/sessions/${sessionId}/attendance`}>
                   <Button>
                     <Users className="h-4 w-4 mr-2" />
@@ -137,6 +143,7 @@ export default function SessionDetailPage() {
             <CardContent className="pt-6">
               <h3 className="font-semibold mb-2">Next Steps:</h3>
               <ol className="list-decimal list-inside space-y-1 text-gray-700">
+                <li>Update session costs (transport, drinks, emergency) after session</li>
                 <li>Mark attendance for all members</li>
                 <li>Add any guests who attended</li>
                 <li>Finalize the session to charge members</li>

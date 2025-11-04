@@ -19,11 +19,9 @@ export default function NewSessionPage() {
     fieldId: '',
     sessionType: 'practice' as 'practice' | 'match',
     scheduledDate: '',
-    scheduledTime: '',
-    fieldCost: '600',
-    transportCost: '100',
-    drinksCost: '50',
-    emergencyFund: '50',
+    startTime: '',
+    endTime: '',
+    fieldBookingAmount: '0',
     notes: '',
   });
 
@@ -35,24 +33,18 @@ export default function NewSessionPage() {
     },
   });
 
-  const totalCost = 
-    parseFloat(formData.fieldCost || '0') +
-    parseFloat(formData.transportCost || '0') +
-    parseFloat(formData.drinksCost || '0') +
-    parseFloat(formData.emergencyFund || '0');
-
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
-      const scheduledDate = `${formData.scheduledDate}T${formData.scheduledTime}:00Z`;
+      const scheduledDate = `${formData.scheduledDate}T${formData.startTime}:00Z`;
       const result = await createSession.mutateAsync({
         fieldId: parseInt(formData.fieldId),
         sessionType: formData.sessionType,
         scheduledDate,
-        fieldCost: parseFloat(formData.fieldCost),
-        transportCost: parseFloat(formData.transportCost),
-        drinksCost: parseFloat(formData.drinksCost),
-        emergencyFund: parseFloat(formData.emergencyFund),
+        fieldCost: parseFloat(formData.fieldBookingAmount),
+        transportCost: 0,
+        drinksCost: 0,
+        emergencyFund: 0,
         notes: formData.notes,
       });
       router.push(`/sessions/${result.id}`);
@@ -110,76 +102,52 @@ export default function NewSessionPage() {
                 </Select>
               </div>
 
+              <div>
+                <Label>Date *</Label>
+                <Input
+                  type="date"
+                  required
+                  value={formData.scheduledDate}
+                  onChange={(e) => setFormData({ ...formData, scheduledDate: e.target.value })}
+                />
+              </div>
+
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <Label>Date</Label>
-                  <Input
-                    type="date"
-                    required
-                    value={formData.scheduledDate}
-                    onChange={(e) => setFormData({ ...formData, scheduledDate: e.target.value })}
-                  />
-                </div>
-                <div>
-                  <Label>Time</Label>
+                  <Label>Start Time *</Label>
                   <Input
                     type="time"
                     required
-                    value={formData.scheduledTime}
-                    onChange={(e) => setFormData({ ...formData, scheduledTime: e.target.value })}
+                    value={formData.startTime}
+                    onChange={(e) => setFormData({ ...formData, startTime: e.target.value })}
+                  />
+                </div>
+                <div>
+                  <Label>End Time *</Label>
+                  <Input
+                    type="time"
+                    required
+                    value={formData.endTime}
+                    onChange={(e) => setFormData({ ...formData, endTime: e.target.value })}
                   />
                 </div>
               </div>
 
               <div className="border-t pt-4">
-                <h3 className="font-semibold mb-3">Cost Breakdown</h3>
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <Label>Field Cost (BDT)</Label>
-                    <Input
-                      type="number"
-                      min="0"
-                      step="0.01"
-                      value={formData.fieldCost}
-                      onChange={(e) => setFormData({ ...formData, fieldCost: e.target.value })}
-                    />
-                  </div>
-                  <div>
-                    <Label>Transport Cost (BDT)</Label>
-                    <Input
-                      type="number"
-                      min="0"
-                      step="0.01"
-                      value={formData.transportCost}
-                      onChange={(e) => setFormData({ ...formData, transportCost: e.target.value })}
-                    />
-                  </div>
-                  <div>
-                    <Label>Drinks Cost (BDT)</Label>
-                    <Input
-                      type="number"
-                      min="0"
-                      step="0.01"
-                      value={formData.drinksCost}
-                      onChange={(e) => setFormData({ ...formData, drinksCost: e.target.value })}
-                    />
-                  </div>
-                  <div>
-                    <Label>Emergency Fund (BDT)</Label>
-                    <Input
-                      type="number"
-                      min="0"
-                      step="0.01"
-                      value={formData.emergencyFund}
-                      onChange={(e) => setFormData({ ...formData, emergencyFund: e.target.value })}
-                    />
-                  </div>
-                </div>
-                <div className="mt-4 p-3 bg-gray-50 rounded-md">
-                  <div className="flex justify-between items-center">
-                    <span className="font-semibold">Total Cost:</span>
-                    <span className="text-2xl font-bold">{totalCost.toFixed(2)} BDT</span>
-                  </div>
+                <h3 className="font-semibold mb-3">Field Booking</h3>
+                <div>
+                  <Label>Field Booking Amount (BDT)</Label>
+                  <Input
+                    type="number"
+                    min="0"
+                    step="0.01"
+                    value={formData.fieldBookingAmount}
+                    onChange={(e) => setFormData({ ...formData, fieldBookingAmount: e.target.value })}
+                    placeholder="Partial field fee paid in advance"
+                  />
+                  <p className="text-xs text-gray-500 mt-1">
+                    Other costs (transport, drinks, emergency) will be added later by treasurer
+                  </p>
                 </div>
               </div>
 
