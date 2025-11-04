@@ -53,6 +53,12 @@ export default function SessionDetailPage() {
                     Mark Attendance
                   </Button>
                 </Link>
+                <Link href={`/sessions/${sessionId}/finalize`}>
+                  <Button variant="outline">
+                    <DollarSign className="h-4 w-4 mr-2" />
+                    Finalize
+                  </Button>
+                </Link>
               </>
             )}
           </div>
