@@ -1,0 +1,106 @@
+http://localhost:3001/reports/spending => 404
+http://localhost:3001/sessions/new => form dosne not have time start or end only time , emargency fund transportation food, can not be added ahead of session time only the field booking can be done before hand, which is a fraction of field fee, all the cost will be added later when the the tresared will do calculate total sessoin fee, session fee can not be given ahead of time.
+
+src/lib/api.ts (14:13) @ <unknown>
+
+
+  12 |   (response) => response,
+  13 |   (error) => {
+> 14 |     console.error('API Error:', error.response?.data || error.message);
+     |             ^
+  15 |     return Promise.reject(error);
+  16 |   }
+  17 | );
+Call Stack
+6
+
+Show 4 ignore-listed frame(s)
+<unknown>
+src/lib/api.ts (14:13)
+async Object.create
+src/lib/api/sessions.ts (16:22)
+
+Console AxiosError
+
+
+Request failed with status code 400
+src/lib/api/sessions.ts (16:22) @ async Object.create
+
+
+  14 |
+  15 |   create: async (sessionData: CreateSessionDto): Promise<Session> => {
+> 16 |     const { data } = await api.post('/sessions', sessionData);
+     |                      ^
+  17 |     return data;
+  18 |   },
+  19 |
+Call Stack
+4
+
+Hide 3 ignore-listed frame(s)
+settle
+node_modules/axios/lib/core/settle.js (19:12)
+XMLHttpRequest.onloadend
+node_modules/axios/lib/adapters/xhr.js (59:13)
+Axios.request
+node_modules/axios/lib/core/Axios.js (45:41)
+async Object.create
+src/lib/api/sessions.ts (16:22)
+
+## Error Type
+Console AxiosError
+
+## Error Message
+Request failed with status code 400
+
+
+    at async Object.create (src/lib/api/sessions.ts:16:22)
+
+## Code Frame
+  14 |
+  15 |   create: async (sessionData: CreateSessionDto): Promise<Session> => {
+> 16 |     const { data } = await api.post('/sessions', sessionData);
+     |                      ^
+  17 |     return data;
+  18 |   },
+  19 |
+
+Next.js version: 16.0.1 (Turbopack)
+## Error Type
+Console Error
+
+## Error Message
+API Error: {}
+
+
+    at <unknown> (src/lib/api.ts:14:13)
+    at async Object.create (src/lib/api/sessions.ts:16:22)
+
+## Code Frame
+  12 |   (response) => response,
+  13 |   (error) => {
+> 14 |     console.error('API Error:', error.response?.data || error.message);
+     |             ^
+  15 |     return Promise.reject(error);
+  16 |   }
+  17 | );
+
+Next.js version: 16.0.1 (Turbopack)
+
+
+i can not add fields! or login , there can be multiple admins
+
+Request URL
+http://localhost:3000/sessions/2/calculate-cost
+Request Method
+GET
+Status Code
+404 Not Found
+Remote Address
+[::1]:3000
+Referrer Policy
+strict-origin-when-cross-origin
+
+top right bell icon with alart numbers can not be clicked no response no api call is happening
+
+on responsive view menu button is not comming
