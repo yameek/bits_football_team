@@ -18,7 +18,7 @@ export const sessionApi = {
   },
 
   update: async (id: number, sessionData: Partial<CreateSessionDto>): Promise<Session> => {
-    const { data } = await api.patch(`/sessions/${id}`, sessionData);
+    const { data } = await api.put(`/sessions/${id}`, sessionData);
     return data;
   },
 
@@ -37,6 +37,11 @@ export const sessionApi = {
   },
 
   calculateCost: async (id: number): Promise<any> => {
+    const { data } = await api.get(`/sessions/${id}/total-cost`);
+    return data;
+  },
+
+  getTotalCost: async (id: number): Promise<any> => {
     const { data } = await api.get(`/sessions/${id}/total-cost`);
     return data;
   },

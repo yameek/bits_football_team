@@ -43,7 +43,7 @@ export default function FieldsPage() {
 
   const updateField = useMutation({
     mutationFn: async ({ id, data }: { id: number; data: any }) => {
-      const { data: result } = await api.patch(`/fields/${id}`, data);
+      const { data: result } = await api.put(`/fields/${id}`, data);
       return result;
     },
     onSuccess: () => {

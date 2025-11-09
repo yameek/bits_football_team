@@ -36,11 +36,13 @@ export default function NewSessionPage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
-      const scheduledDate = `${formData.scheduledDate}T${formData.startTime}:00Z`;
+      const scheduledStart = `${formData.scheduledDate}T${formData.startTime}:00Z`;
+      const scheduledEnd = formData.endTime ? `${formData.scheduledDate}T${formData.endTime}:00Z` : undefined;
       const result = await createSession.mutateAsync({
         fieldId: parseInt(formData.fieldId),
         sessionType: formData.sessionType,
-        scheduledDate,
+        scheduledStart,
+        scheduledEnd,
         fieldCost: parseFloat(formData.fieldBookingAmount),
         transportCost: 0,
         drinksCost: 0,
@@ -134,7 +136,7 @@ export default function NewSessionPage() {
               </div>
 
               <div className="border-t pt-4">
-                <h3 className="font-semibold mb-3">Field Booking</h3>
+                <h3 className="font-semibold mb-3">Field Booking (Optional)</h3>
                 <div>
                   <Label>Field Booking Amount (BDT)</Label>
                   <Input
@@ -143,10 +145,10 @@ export default function NewSessionPage() {
                     step="0.01"
                     value={formData.fieldBookingAmount}
                     onChange={(e) => setFormData({ ...formData, fieldBookingAmount: e.target.value })}
-                    placeholder="Partial field fee paid in advance"
+                    placeholder="0"
                   />
                   <p className="text-xs text-gray-500 mt-1">
-                    Other costs (transport, drinks, emergency) will be added later by treasurer
+                    Only partial field fee can be paid in advance. Transport, drinks, emergency funds and full field cost will be added later by treasurer when finalizing the session.
                   </p>
                 </div>
               </div>
