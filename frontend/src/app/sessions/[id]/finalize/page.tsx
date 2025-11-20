@@ -19,8 +19,8 @@ export default function FinalizeSessionPage() {
   const { data: attendance } = useSessionAttendance(sessionId);
   const finalizeSession = useFinalizeSession();
 
-  const { data: costCalculation } = useQuery({
-    queryKey: ['sessions', sessionId, 'calculate-cost'],
+  const { data: totalCostData } = useQuery({
+    queryKey: ['sessions', sessionId, 'total-cost'],
     queryFn: () => sessionApi.calculateCost(sessionId),
     enabled: !!sessionId,
   });
@@ -34,12 +34,14 @@ export default function FinalizeSessionPage() {
     }
   };
 
-  if (!session || !attendance || !costCalculation) {
+  if (!session || !attendance || !totalCostData) {
     return <MainLayout><div>Loading...</div></MainLayout>;
   }
 
   const presentCount = attendance.filter((a: any) => a.status === 'present' || a.status === 'late').length;
   const absentCount = attendance.filter((a: any) => a.status === 'absent').length;
+  const totalCost = totalCostData?.totalCost || parseFloat(session.total_cost) || 0;
+  const perHeadFee = presentCount > 0 ? Math.round((totalCost / presentCount) * 4) / 4 : 0;
 
   return (
     <MainLayout>
@@ -67,7 +69,7 @@ export default function FinalizeSessionPage() {
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold">
-                {parseFloat(session.total_cost).toFixed(2)} BDT
+                {totalCost.toFixed(2)} BDT
               </div>
             </CardContent>
           </Card>
@@ -92,37 +94,40 @@ export default function FinalizeSessionPage() {
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold">
-                {costCalculation.perHeadFee?.toFixed(2) || '0.00'} BDT
+                {perHeadFee.toFixed(2)} BDT
               </div>
+              <p className="text-xs text-gray-500 mt-1">
+                {presentCount > 0 ? `(${totalCost.toFixed(2)} / ${presentCount} = ${(totalCost / presentCount).toFixed(2)}, rounded to 0.25)` : 'No attendees'}
+              </p>
             </CardContent>
           </Card>
         </div>
 
         <Card>
           <CardHeader>
-            <CardTitle>Member Charges</CardTitle>
+            <CardTitle>Attendees to be Charged</CardTitle>
           </CardHeader>
           <CardContent>
             <div className="space-y-3">
-              {costCalculation.charges?.map((charge: any) => {
-                const willBeLowBalance = parseFloat(charge.newBalance) < 250;
+              {attendance.filter((a: any) => a.status === 'present' || a.status === 'late').map((att: any) => {
+                const member = att.member;
+                if (!member) return null;
+                
+                const currentBalance = parseFloat(member.balance || '0');
+                const newBalance = currentBalance - perHeadFee;
+                const willBeLowBalance = newBalance < 250;
                 
                 return (
-                  <div key={charge.memberId} className="flex items-center justify-between p-3 bg-gray-50 rounded-md">
+                  <div key={att.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-md">
                     <div>
-                      <p className="font-medium">{charge.memberName}</p>
+                      <p className="font-medium">{member.name}</p>
                       <div className="flex items-center gap-4 text-sm text-gray-600 mt-1">
-                        <span>Current: {parseFloat(charge.currentBalance).toFixed(2)} BDT</span>
+                        <span>Current: {currentBalance.toFixed(2)} BDT</span>
                         <span>→</span>
                         <span className={willBeLowBalance ? 'text-orange-600 font-medium' : ''}>
-                          New: {parseFloat(charge.newBalance).toFixed(2)} BDT
+                          New: {newBalance.toFixed(2)} BDT
                         </span>
                       </div>
-                      {charge.isNewMember && (
-                        <Badge variant="outline" className="mt-1 text-xs">
-                          New Member Surcharge Applied
-                        </Badge>
-                      )}
                       {willBeLowBalance && (
                         <div className="flex items-center mt-1 text-xs text-orange-600">
                           <AlertTriangle className="h-3 w-3 mr-1" />
@@ -132,58 +137,38 @@ export default function FinalizeSessionPage() {
                     </div>
                     <div className="text-right">
                       <p className="text-lg font-bold text-red-600">
-                        -{parseFloat(charge.amount).toFixed(2)} BDT
+                        -{perHeadFee.toFixed(2)} BDT
                       </p>
                     </div>
                   </div>
                 );
               })}
+              {presentCount === 0 && (
+                <p className="text-center text-gray-500 py-4">No attendees marked as present</p>
+              )}
             </div>
           </CardContent>
         </Card>
-
-        {costCalculation.fines && costCalculation.fines.length > 0 && (
-          <Card className="border-orange-200">
-            <CardHeader>
-              <CardTitle className="text-orange-800">Fines to be Applied</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-2">
-                {costCalculation.fines.map((fine: any) => (
-                  <div key={fine.memberId} className="flex items-center justify-between p-3 bg-orange-50 rounded-md">
-                    <div>
-                      <p className="font-medium">{fine.memberName}</p>
-                      <p className="text-sm text-gray-600">
-                        {fine.consecutiveAbsences} consecutive absences
-                      </p>
-                    </div>
-                    <p className="text-lg font-bold text-orange-600">
-                      -{parseFloat(fine.fineAmount).toFixed(2)} BDT (20%)
-                    </p>
-                  </div>
-                ))}
-              </div>
-            </CardContent>
-          </Card>
-        )}
 
         <Card>
           <CardContent className="pt-6">
             <h3 className="font-semibold mb-3">Summary</h3>
             <div className="space-y-2 text-sm">
               <div className="flex justify-between">
-                <span>Total Members Charged:</span>
-                <span className="font-medium">{costCalculation.charges?.length || 0}</span>
+                <span>Total Cost:</span>
+                <span className="font-medium">{totalCost.toFixed(2)} BDT</span>
               </div>
               <div className="flex justify-between">
-                <span>Total Fines Applied:</span>
-                <span className="font-medium">{costCalculation.fines?.length || 0}</span>
+                <span>Attendees:</span>
+                <span className="font-medium">{presentCount}</span>
               </div>
               <div className="flex justify-between">
-                <span>Members Below Threshold:</span>
-                <span className="font-medium text-orange-600">
-                  {costCalculation.charges?.filter((c: any) => parseFloat(c.newBalance) < 250).length || 0}
-                </span>
+                <span>Per-Head Fee:</span>
+                <span className="font-medium">{perHeadFee.toFixed(2)} BDT</span>
+              </div>
+              <div className="flex justify-between">
+                <span>Total to be Collected:</span>
+                <span className="font-medium">{((perHeadFee * presentCount)).toFixed(2)} BDT</span>
               </div>
             </div>
           </CardContent>

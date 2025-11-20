@@ -17,8 +17,8 @@ export default function FieldsPage() {
   const [editingField, setEditingField] = useState<any>(null);
   const [formData, setFormData] = useState({
     name: '',
-    location: '',
-    defaultCost: '',
+    address: '',
+    googleMapLink: '',
   });
 
   const { data: fields, isLoading } = useQuery({
@@ -37,7 +37,7 @@ export default function FieldsPage() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['fields'] });
       setOpen(false);
-      setFormData({ name: '', location: '', defaultCost: '' });
+      setFormData({ name: '', address: '', googleMapLink: '' });
     },
   });
 
@@ -50,7 +50,7 @@ export default function FieldsPage() {
       queryClient.invalidateQueries({ queryKey: ['fields'] });
       setOpen(false);
       setEditingField(null);
-      setFormData({ name: '', location: '', defaultCost: '' });
+      setFormData({ name: '', address: '', googleMapLink: '' });
     },
   });
 
@@ -64,21 +64,25 @@ export default function FieldsPage() {
   });
 
   const handleSubmit = () => {
+    const fieldData: any = {
+      name: formData.name,
+    };
+    
+    if (formData.address) {
+      fieldData.address = formData.address;
+    }
+    
+    if (formData.googleMapLink) {
+      fieldData.googleMapLink = formData.googleMapLink;
+    }
+    
     if (editingField) {
       updateField.mutate({
         id: editingField.id,
-        data: {
-          name: formData.name,
-          location: formData.location,
-          default_cost: formData.defaultCost ? parseFloat(formData.defaultCost) : undefined,
-        },
+        data: fieldData,
       });
     } else {
-      createField.mutate({
-        name: formData.name,
-        location: formData.location,
-        default_cost: formData.defaultCost ? parseFloat(formData.defaultCost) : undefined,
-      });
+      createField.mutate(fieldData);
     }
   };
 
@@ -86,8 +90,8 @@ export default function FieldsPage() {
     setEditingField(field);
     setFormData({
       name: field.name,
-      location: field.location || '',
-      defaultCost: field.default_cost || '',
+      address: field.address || '',
+      googleMapLink: field.google_map_link || '',
     });
     setOpen(true);
   };
@@ -95,7 +99,7 @@ export default function FieldsPage() {
   const handleClose = () => {
     setOpen(false);
     setEditingField(null);
-    setFormData({ name: '', location: '', defaultCost: '' });
+    setFormData({ name: '', address: '', googleMapLink: '' });
   };
 
   return (
@@ -127,22 +131,20 @@ export default function FieldsPage() {
                   />
                 </div>
                 <div>
-                  <Label>Location</Label>
+                  <Label>Address</Label>
                   <Input
-                    value={formData.location}
-                    onChange={(e) => setFormData({ ...formData, location: e.target.value })}
-                    placeholder="e.g., Dhaka, Bangladesh"
+                    value={formData.address}
+                    onChange={(e) => setFormData({ ...formData, address: e.target.value })}
+                    placeholder="e.g., 123 Main Street, Dhaka, Bangladesh"
                   />
                 </div>
                 <div>
-                  <Label>Default Cost (BDT)</Label>
+                  <Label>Google Maps Link (Optional)</Label>
                   <Input
-                    type="number"
-                    min="0"
-                    step="0.01"
-                    value={formData.defaultCost}
-                    onChange={(e) => setFormData({ ...formData, defaultCost: e.target.value })}
-                    placeholder="600"
+                    type="url"
+                    value={formData.googleMapLink}
+                    onChange={(e) => setFormData({ ...formData, googleMapLink: e.target.value })}
+                    placeholder="https://maps.google.com/?q=..."
                   />
                 </div>
                 <Button
@@ -193,13 +195,18 @@ export default function FieldsPage() {
                   </CardTitle>
                 </CardHeader>
                 <CardContent>
-                  {field.location && (
-                    <p className="text-sm text-gray-600 mb-2">{field.location}</p>
+                  {field.address && (
+                    <p className="text-sm text-gray-600 mb-2">{field.address}</p>
                   )}
-                  {field.default_cost && (
-                    <p className="text-lg font-semibold">
-                      {parseFloat(field.default_cost).toFixed(2)} BDT
-                    </p>
+                  {field.google_map_link && (
+                    <a
+                      href={field.google_map_link}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-sm text-blue-600 hover:underline"
+                    >
+                      View on Google Maps
+                    </a>
                   )}
                 </CardContent>
               </Card>

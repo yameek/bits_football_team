@@ -25,11 +25,13 @@ export interface Field {
 export interface CreateSessionDto {
   fieldId: number;
   sessionType: 'practice' | 'match';
-  scheduledDate: string;
-  fieldCost: number;
-  transportCost: number;
-  drinksCost: number;
-  emergencyFund: number;
+  scheduledStart: string;
+  scheduledEnd?: string;
+  fieldCost?: number;
+  transportCost?: number;
+  drinksCost?: number;
+  emergencyFund?: number;
+  otherCosts?: number;
   notes?: string;
 }
 

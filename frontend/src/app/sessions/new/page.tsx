@@ -36,12 +36,18 @@ export default function NewSessionPage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
-      const scheduledDate = `${formData.scheduledDate}T${formData.startTime}:00Z`;
+      // Combine date and start time for scheduledStart
+      const scheduledStart = `${formData.scheduledDate}T${formData.startTime}:00Z`;
+      // Combine date and end time for scheduledEnd (if provided)
+      const scheduledEnd = formData.endTime ? `${formData.scheduledDate}T${formData.endTime}:00Z` : undefined;
+      
       const result = await createSession.mutateAsync({
         fieldId: parseInt(formData.fieldId),
         sessionType: formData.sessionType,
-        scheduledDate,
-        fieldCost: parseFloat(formData.fieldBookingAmount),
+        scheduledStart,
+        scheduledEnd,
+        fieldCost: parseFloat(formData.fieldBookingAmount) || 0,
+        // Transport, drinks, and emergency fund will be added later by treasurer
         transportCost: 0,
         drinksCost: 0,
         emergencyFund: 0,
@@ -95,7 +101,7 @@ export default function NewSessionPage() {
                   <SelectContent>
                     {fields?.map((field: any) => (
                       <SelectItem key={field.id} value={field.id.toString()}>
-                        {field.name} {field.location && `- ${field.location}`}
+                        {field.name} {field.address && `- ${field.address}`}
                       </SelectItem>
                     ))}
                   </SelectContent>

@@ -14,20 +14,11 @@ export function MainLayout({ children }: { children: React.ReactNode }) {
         <div
           className="fixed inset-0 z-40 bg-gray-600 bg-opacity-75 md:hidden"
           onClick={() => setSidebarOpen(false)}
-        >
-          <div
-            className="fixed inset-y-0 left-0 flex w-64 flex-col"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <Sidebar />
-          </div>
-        </div>
+        />
       )}
 
-      {/* Desktop sidebar */}
-      <div className="hidden md:block">
-        <Sidebar />
-      </div>
+      {/* Sidebar - Mobile and Desktop */}
+      <Sidebar mobileOpen={sidebarOpen} onMobileClose={() => setSidebarOpen(false)} />
 
       <div className="md:pl-64 flex flex-col flex-1">
         <Navbar onMenuClick={() => setSidebarOpen(!sidebarOpen)} />
